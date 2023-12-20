@@ -7,51 +7,39 @@ use crossterm::{
         EnterAlternateScreen, LeaveAlternateScreen
     }
 };
-use ratatui::prelude::*;
-use ratatui::widgets::Paragraph;
+use ratatui::{
+    backend::CrosstermBackend, terminal::Terminal
+};
 use std::{
     panic, time::Duration,
     io::{stdout, Stdout},
 };
 
+mod common;
+mod menu;
+
+use crate::common::*;
+use crate::menu::MenuModel;
+
 type NolpBackend = CrosstermBackend<Stdout>;
 type NolpTerminal = Terminal<NolpBackend>;
-
-#[derive(Debug, Default, PartialEq)]
-enum ModelState {
-   #[default]
-    Running,
-    Stopping 
-}
-
-#[derive(Debug, Default)]
-struct Model {
-    view: String,
-    state: ModelState
-}
-
-#[derive(Debug, PartialEq)]
-enum Message {
-    Quit
-}
 
 fn main() {
     set_panic_hook();
 
-    let mut model = Model::default();
-    model.view = String::from("Working...?");
+    let mut model = MenuModel::default();
     let mut terminal = init_terminal()
         .expect("Failed to initialize terminal");
 
-    while model.state != ModelState::Stopping {
+    while model.get_state() != &State::Stopping {
         let msg = handle_event()
             .expect("Failed to poll events");
         
-        terminal.draw(|frame| view(&mut model, frame))
+        terminal.draw(|frame| model.view(frame))
             .expect("Failed to render frame");
         
         if msg.is_some() {
-            update(&mut model, msg.unwrap());
+            model.update(msg.unwrap());
         }
     }
 
@@ -118,17 +106,4 @@ fn set_panic_hook() {
             }
         }
     }));
-}
-
-fn update(model: &mut Model, msg: Message) {
-    match msg {
-        Message::Quit => model.state = ModelState::Stopping,
-    }
-}
-
-fn view(model: &mut Model, frame: &mut Frame) {
-    frame.render_widget(
-        Paragraph::new(format!("{}", model.view)), 
-        frame.size()
-    );
 }
