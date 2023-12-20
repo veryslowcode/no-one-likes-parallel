@@ -8,6 +8,7 @@ use crossterm::{
     }
 };
 use ratatui::prelude::*;
+use ratatui::widgets::Paragraph;
 use std::{
     panic, time::Duration,
     io::{stdout, Stdout},
@@ -25,6 +26,7 @@ enum ModelState {
 
 #[derive(Debug, Default)]
 struct Model {
+    view: String,
     state: ModelState
 }
 
@@ -37,14 +39,16 @@ fn main() {
     set_panic_hook();
 
     let mut model = Model::default();
-    let _terminal = init_terminal()
+    model.view = String::from("Working...?");
+    let mut terminal = init_terminal()
         .expect("Failed to initialize terminal");
 
     while model.state != ModelState::Stopping {
         let msg = handle_event()
             .expect("Failed to poll events");
-
-        // Call view
+        
+        terminal.draw(|frame| view(&mut model, frame))
+            .expect("Failed to render frame");
         
         if msg.is_some() {
             update(&mut model, msg.unwrap());
@@ -120,4 +124,11 @@ fn update(model: &mut Model, msg: Message) {
     match msg {
         Message::Quit => model.state = ModelState::Stopping,
     }
+}
+
+fn view(model: &mut Model, frame: &mut Frame) {
+    frame.render_widget(
+        Paragraph::new(format!("{}", model.view)), 
+        frame.size()
+    );
 }
