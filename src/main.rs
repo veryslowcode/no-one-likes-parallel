@@ -16,23 +16,38 @@ use std::{
 type NolpBackend = CrosstermBackend<Stdout>;
 type NolpTerminal = Terminal<NolpBackend>;
 
+#[derive(Debug, Default, PartialEq)]
+enum ModelState {
+   #[default]
+    Running,
+    Stopping 
+}
+
+#[derive(Debug, Default)]
+struct Model {
+    state: ModelState
+}
+
 #[derive(Debug, PartialEq)]
 enum Message {
-    Quit,
-    None
+    Quit
 }
 
 fn main() {
     set_panic_hook();
 
-    init_terminal()
+    let mut model = Model::default();
+    let _terminal = init_terminal()
         .expect("Failed to initialize terminal");
 
-    loop {
+    while model.state != ModelState::Stopping {
         let msg = handle_event()
             .expect("Failed to poll events");
-        if msg == Message::Quit {
-            break;
+
+        // Call view
+        
+        if msg.is_some() {
+            update(&mut model, msg.unwrap());
         }
     }
 
@@ -40,27 +55,33 @@ fn main() {
         .expect("Failed to reset terminal");
 }
 
-fn handle_event() -> Result<Message> {
+fn handle_event() -> Result<Option<Message>> {
     let poll_rate = Duration::from_millis(250);
     if event::poll(poll_rate)? {
         let event_read = event::read()?;
         return match event_read {
             Event::Key(k) => Ok(handle_key_event(k)),
-            _ => Ok(Message::None)
+            _ => Ok(None)
         }
     }
 
-    Ok(Message::None)
+    Ok(None)
 }
 
-fn handle_key_event(key: event::KeyEvent) -> Message {
+fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
     if key.kind != KeyEventKind::Press {
-        return Message::None;
+        return None;
     }
 
     return match key.code {
-        KeyCode::Char('q') => Message::Quit,
-        _ => Message::None
+        KeyCode::Char('c') => {
+            if key.modifiers == event::KeyModifiers::CONTROL {
+                return Some(Message::Quit);
+            } else {
+                return None;
+            }
+        },
+        _ => None
     }
 }
 
@@ -93,4 +114,10 @@ fn set_panic_hook() {
             }
         }
     }));
+}
+
+fn update(model: &mut Model, msg: Message) {
+    match msg {
+        Message::Quit => model.state = ModelState::Stopping,
+    }
 }
