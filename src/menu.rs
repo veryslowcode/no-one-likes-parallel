@@ -1,11 +1,14 @@
 use ratatui::Frame;
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
-    style::Style,
+    layout::{
+        Alignment, Constraint, 
+        Direction, Layout
+    },
+    style::{Color, Modifier, Style},
     text::Line,
     widgets::{
-        Borders, Block, Paragraph,
-        Scrollbar, ScrollbarOrientation, ScrollbarState
+        Block, Paragraph, Scrollbar, 
+        ScrollbarOrientation, ScrollbarState
     }
 };
 
@@ -127,11 +130,29 @@ impl Tea for MenuModel {
             .thumb_symbol("░")
             .end_symbol(Some("↓"))
             .orientation(ScrollbarOrientation::VerticalRight);
+
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1),
+                Constraint::Length(1),
+                Constraint::Min(1)
+            ])
+            .split(bounds);
+
+        let title = Block::default()
+            .title("Menu".to_string())
+            .title_alignment(Alignment::Center)
+        .title_style(Style::default()
+                     .add_modifier(Modifier::BOLD));
+
+        frame.render_widget(title, layout[0]);
         
         let mut elements = Vec::new();
         for input in self.inputs.iter() {
             let style = Style::default()
-                .add_modifier(ratatui::style::Modifier::UNDERLINED);
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::UNDERLINED);
             elements.push(Line::from(input.title.to_string()));
             elements.push(
                 Line::styled(input.placeholder.to_string(), style));
@@ -140,11 +161,11 @@ impl Tea for MenuModel {
         let menu = Paragraph::new(elements)
             .scroll((0, 0));
 
-        frame.render_widget(menu, bounds);
+        frame.render_widget(menu, layout[2]);
 
         frame.render_stateful_widget(
             scrollbar,
-            bounds,
+            layout[2],
             &mut self.scroll
         );
     }
