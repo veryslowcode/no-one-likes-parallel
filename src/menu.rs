@@ -1,8 +1,10 @@
 use ratatui::Frame;
 use ratatui::{
     layout::{Constraint, Direction, Layout},
+    style::Style,
+    text::Line,
     widgets::{
-        Borders, Block, Paragraph, 
+        Borders, Block, Paragraph,
         Scrollbar, ScrollbarOrientation, ScrollbarState
     }
 };
@@ -66,6 +68,30 @@ impl Default for MenuModel {
                 .placeholder(String::from("9600"))
         );
 
+        inputs.push(
+            MenuInput::default()
+                .title(String::from("Data bits"))
+                .placeholder(String::from("8"))
+        );
+
+        inputs.push(
+            MenuInput::default()
+                .title(String::from("Stop bits"))
+                .placeholder(String::from("1"))
+        );
+
+        inputs.push(
+            MenuInput::default()
+                .title(String::from("Parity"))
+                .placeholder(String::from("Event"))
+        );
+        
+        inputs.push(
+            MenuInput::default()
+                .title(String::from("Mode"))
+                .placeholder(String::from("Ascii"))
+        );
+
         MenuModel {
             scroll: ScrollbarState::default()
                 .content_length(12),
@@ -101,36 +127,25 @@ impl Tea for MenuModel {
             .thumb_symbol("░")
             .end_symbol(Some("↓"))
             .orientation(ScrollbarOrientation::VerticalRight);
+        
+        let mut elements = Vec::new();
+        for input in self.inputs.iter() {
+            let style = Style::default()
+                .add_modifier(ratatui::style::Modifier::UNDERLINED);
+            elements.push(Line::from(input.title.to_string()));
+            elements.push(
+                Line::styled(input.placeholder.to_string(), style));
+        }
+
+        let menu = Paragraph::new(elements)
+            .scroll((0, 0));
+
+        frame.render_widget(menu, bounds);
 
         frame.render_stateful_widget(
             scrollbar,
             bounds,
             &mut self.scroll
         );
-
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(3),
-                Constraint::Length(0)
-            ])
-            .split(bounds);
-
-        for (index, input) in self.inputs.iter().enumerate() {
-            let text = if input.value.len() > 0 {
-                &input.value
-            } else {
-                &input.placeholder
-            };
-    
-            let b = Block::default()
-                .title(input.title.to_string())
-                .borders(Borders::BOTTOM);
-            let w = Paragraph::new(text.to_string())
-                .block(b);
-
-            frame.render_widget(w, layout[index]);
-        }
     }
 }
