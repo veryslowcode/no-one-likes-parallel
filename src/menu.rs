@@ -28,7 +28,7 @@ pub struct MenuModel {
     scroll: ScrollbarState,
     inputs: Vec<MenuInput>
 }
-
+    
 impl Default for MenuInput {
     fn default() -> MenuInput {
         MenuInput {
@@ -148,15 +148,7 @@ impl Tea for MenuModel {
 
         frame.render_widget(title, layout[0]);
         
-        let mut elements = Vec::new();
-        for input in self.inputs.iter() {
-            let style = Style::default()
-                .fg(Color::DarkGray)
-                .add_modifier(Modifier::UNDERLINED);
-            elements.push(Line::from(input.title.to_string()));
-            elements.push(
-                Line::styled(input.placeholder.to_string(), style));
-        }
+	let elements = input_elements(&mut self.inputs, self.selected.into());
 
         let menu = Paragraph::new(elements)
             .scroll((0, 0));
@@ -169,4 +161,46 @@ impl Tea for MenuModel {
             &mut self.scroll
         );
     }
+}
+
+fn input_elements(inputs: &mut Vec<MenuInput>, selected: usize) -> Vec<Line> {
+    let mut elements = Vec::new();
+    let mut underline = Line::from(format!("{:▔>14}", ""));
+    let placeholder_style = Style::default().fg(Color::DarkGray);
+    let selected_style = Style::default().fg(Color::LightBlue);
+    
+    for (index, input) in inputs.iter().enumerate() {
+	let title: Line;
+	let element: Line;
+	let underline: Line;
+
+	if input.value.len() > 0 {
+	    element = Line::from(input.value.to_string());
+	} else {
+	    element = Line::styled(
+		input.placeholder.to_string(),
+		placeholder_style
+	    );
+	}
+
+	if index == selected {
+	    title = Line::styled(
+		input.title.to_string(),
+		selected_style
+	    );
+	    underline = Line::styled(
+		format!("{:▔>14}", ""),
+		selected_style
+	    );
+	} else {
+	    title = Line::from(input.title.to_string());
+	    underline = Line::from(format!("{:▔>14}", ""));
+	}
+	
+	elements.push(title);
+	elements.push(element);
+	elements.push(underline);
+    }
+
+    return elements;
 }
