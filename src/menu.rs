@@ -1,16 +1,11 @@
 use ratatui::Frame;
 use ratatui::{
-    layout::{
-        Alignment, Constraint, 
-        Direction, Layout
-    },
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::Line,
-    widgets::{
-        Block, Paragraph, Scrollbar, 
-        ScrollbarOrientation, ScrollbarState
-    }
+    text::{Line, Text},
+    widgets::{Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
+use std::rc::Rc;
 
 use crate::common::*;
 
@@ -18,7 +13,7 @@ use crate::common::*;
 struct MenuInput {
     title: String,
     value: String,
-    placeholder: String
+    placeholder: String,
 }
 
 #[derive(Debug, PartialEq)]
@@ -26,15 +21,15 @@ pub struct MenuModel {
     state: State,
     selected: u8,
     scroll: ScrollbarState,
-    inputs: Vec<MenuInput>
+    inputs: Vec<MenuInput>,
 }
-    
+
 impl Default for MenuInput {
     fn default() -> MenuInput {
         MenuInput {
             title: String::from(""),
             value: String::from(""),
-            placeholder: String::from("")
+            placeholder: String::from(""),
         }
     }
 }
@@ -62,45 +57,44 @@ impl Default for MenuModel {
         inputs.push(
             MenuInput::default()
                 .title(String::from("Port"))
-                .placeholder(String::from("COM4"))
+                .placeholder(String::from("COM4")),
         );
-        
+
         inputs.push(
             MenuInput::default()
                 .title(String::from("Baudrate"))
-                .placeholder(String::from("9600"))
+                .placeholder(String::from("9600")),
         );
 
         inputs.push(
             MenuInput::default()
                 .title(String::from("Data bits"))
-                .placeholder(String::from("8"))
+                .placeholder(String::from("8")),
         );
 
         inputs.push(
             MenuInput::default()
                 .title(String::from("Stop bits"))
-                .placeholder(String::from("1"))
+                .placeholder(String::from("1")),
         );
 
         inputs.push(
             MenuInput::default()
                 .title(String::from("Parity"))
-                .placeholder(String::from("Event"))
+                .placeholder(String::from("Event")),
         );
-        
+
         inputs.push(
             MenuInput::default()
                 .title(String::from("Mode"))
-                .placeholder(String::from("Ascii"))
+                .placeholder(String::from("Ascii")),
         );
 
         MenuModel {
-            scroll: ScrollbarState::default()
-                .content_length(12),
+            scroll: ScrollbarState::default().content_length(12),
             state: State::Running,
             selected: 0,
-            inputs
+            inputs,
         }
     }
 }
@@ -123,85 +117,111 @@ impl Tea for MenuModel {
     }
 
     fn view(&mut self, frame: &mut Frame) {
-        let bounds = get_center_bounds(50, 50, frame.size());
+        let (bounds, layout) = menu_layout(frame.size());
 
-	let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Min(1)
-            ])
-            .split(bounds);
+        let top_margin = 4;
+        let input_width = 14;
+        let input_width_gap = 4;
+        let input_line_count = 3;
+
+        let mut split = true;
+        let mut min_height = ((self.inputs.len() * input_line_count) + top_margin) / 2;
+        let min_width = (input_width * 2) + input_width_gap;
+        if bounds.width < min_width {
+            min_height = min_height * 2;
+            split = false;
+        }
 
         let title = Block::default()
             .title("Menu".to_string())
             .title_alignment(Alignment::Center)
-            .title_style(Style::default()
-                     .add_modifier(Modifier::BOLD));
+            .title_style(Style::default().add_modifier(Modifier::BOLD));
 
         frame.render_widget(title, layout[0]);
-	let elements = input_elements(&mut self.inputs, self.selected.into());
-        let menu = Paragraph::new(elements)
-            .scroll((0, 0));
+
+        let elements = input_elements(&mut self.inputs, self.selected.into(), split);
+        let menu = Paragraph::new(elements).scroll((0, 0));
 
         frame.render_widget(menu, layout[2]);
-	
-	if usize::from(bounds.height) < self.inputs.len() * 3 {
-            let scrollbar = Scrollbar::default()
-		.begin_symbol(Some("↑"))
-		.track_symbol(Some("-"))
-		.thumb_symbol("░")
-		.end_symbol(Some("↓"))
-		.orientation(ScrollbarOrientation::VerticalRight);
 
-	    frame.render_stateful_widget(
-		scrollbar,
-		layout[2],
-		&mut self.scroll
-            );
-	}
+        if usize::from(bounds.height) < min_height {
+            let scrollbar = Scrollbar::default()
+                .begin_symbol(Some("↑"))
+                .track_symbol(Some("-"))
+                .thumb_symbol("░")
+                .end_symbol(Some("↓"))
+                .orientation(ScrollbarOrientation::VerticalRight);
+
+            frame.render_stateful_widget(scrollbar, layout[2], &mut self.scroll);
+        }
     }
 }
 
-fn input_elements(inputs: &mut Vec<MenuInput>, selected: usize) -> Vec<Line> {
+fn input_elements(inputs: &mut Vec<MenuInput>, _selected: usize, split: bool) -> Vec<Line> {
     let mut elements = Vec::new();
-    let mut underline = Line::from(format!("{:▔>14}", ""));
-    let placeholder_style = Style::default().fg(Color::DarkGray);
-    let selected_style = Style::default().fg(Color::LightBlue);
-    
-    for (index, input) in inputs.iter().enumerate() {
-	let title: Line;
-	let element: Line;
-	let underline: Line;
+    // let mut underline = Line::from(format!("{:▔>14}", ""));
+    // let selected_style = Style::default().fg(Color::LightBlue);
 
-	if input.value.len() > 0 {
-	    element = Line::from(input.value.to_string());
-	} else {
-	    element = Line::styled(
-		input.placeholder.to_string(),
-		placeholder_style
-	    );
-	}
+    let iterations = if split {
+        inputs.len() / 2
+    } else {
+        inputs.len()
+    };
 
-	if index == selected {
-	    title = Line::styled(
-		input.title.to_string(),
-		selected_style
-	    );
-	    underline = Line::styled(
-		format!("{:▔>14}", ""),
-		selected_style
-	    );
-	} else {
-	    title = Line::from(input.title.to_string());
-	    underline = Line::from(format!("{:▔>14}", ""));
-	}
-	
-	elements.push(title);
-	elements.push(element);
-	elements.push(underline);
+    for i in 0..iterations {
+        let title: Line;
+        let input: Line;
+        let underline: Line;
+
+        let underline_format = format!("{:▔>14}", "");
+
+        if split {
+            title = Line::from(format!(
+                "{: <14}{: <8}{: <14}",
+                inputs[i].title.to_string(),
+                "",
+                inputs[i + 3].title.to_string()
+            ));
+            input = Line::from(format!(
+                "{: <14}{: <8}{: <14}",
+                input_text(&mut inputs[i]),
+                "",
+                input_text(&mut inputs[i + 3])
+            ));
+            underline = Line::from(format!("{}{: <8}{}", underline_format, "", underline_format));
+        } else {
+            title = Line::from(inputs[i].title.to_string());
+            input = Line::from(format!("{}", input_text(&mut inputs[i])));
+            underline = Line::from(underline_format);
+        }
+
+        elements.push(title);
+        elements.push(input);
+        elements.push(underline);
     }
 
     return elements;
+}
+
+fn input_text(input: &mut MenuInput) -> String {
+    if input.value.len() > 0 {
+        return input.value.to_string();
+    } else {
+        return input.placeholder.to_string();
+    }
+}
+
+fn menu_layout(fsize: Rect) -> (Rect, Rc<[Rect]>) {
+    let bounds = get_center_bounds(50, 50, fsize);
+
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(4),
+            Constraint::Length(1),
+            Constraint::Min(1),
+        ])
+        .split(bounds);
+
+    return (bounds, layout);
 }
