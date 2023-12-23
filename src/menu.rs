@@ -124,14 +124,8 @@ impl Tea for MenuModel {
 
     fn view(&mut self, frame: &mut Frame) {
         let bounds = get_center_bounds(50, 50, frame.size());
-        let scrollbar = Scrollbar::default()
-            .begin_symbol(Some("↑"))
-            .track_symbol(Some("-"))
-            .thumb_symbol("░")
-            .end_symbol(Some("↓"))
-            .orientation(ScrollbarOrientation::VerticalRight);
 
-        let layout = Layout::default()
+	let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(1),
@@ -143,23 +137,30 @@ impl Tea for MenuModel {
         let title = Block::default()
             .title("Menu".to_string())
             .title_alignment(Alignment::Center)
-        .title_style(Style::default()
+            .title_style(Style::default()
                      .add_modifier(Modifier::BOLD));
 
         frame.render_widget(title, layout[0]);
-        
 	let elements = input_elements(&mut self.inputs, self.selected.into());
-
         let menu = Paragraph::new(elements)
             .scroll((0, 0));
 
         frame.render_widget(menu, layout[2]);
+	
+	if usize::from(bounds.height) < self.inputs.len() * 3 {
+            let scrollbar = Scrollbar::default()
+		.begin_symbol(Some("↑"))
+		.track_symbol(Some("-"))
+		.thumb_symbol("░")
+		.end_symbol(Some("↓"))
+		.orientation(ScrollbarOrientation::VerticalRight);
 
-        frame.render_stateful_widget(
-            scrollbar,
-            layout[2],
-            &mut self.scroll
-        );
+	    frame.render_stateful_widget(
+		scrollbar,
+		layout[2],
+		&mut self.scroll
+            );
+	}
     }
 }
 
