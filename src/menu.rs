@@ -2,7 +2,7 @@ use ratatui::Frame;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Text},
+    text::{Line, Span, Text},
     widgets::{Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 use std::rc::Rc;
@@ -119,8 +119,8 @@ impl Tea for MenuModel {
     fn view(&mut self, frame: &mut Frame) {
         let (bounds, layout) = menu_layout(frame.size());
 
-        let input_gap = 8;
-        let input_width = 14;
+        let input_gap = 10;
+        let input_width = 18;
         let min_width = (input_width * 2) + input_gap;
 
         let mut split = true;
@@ -164,7 +164,7 @@ impl Tea for MenuModel {
 
 fn input_elements(
     inputs: &mut Vec<MenuInput>,
-    _selected: usize,
+    selected: usize,
     split: bool,
     width: usize,
     gap: usize,
@@ -181,45 +181,60 @@ fn input_elements(
     };
 
     for i in 0..iterations {
-        let title: Line;
-        let input: Line;
-        let underline: Line;
+        let mut title_spns = vec![Span::from(format!(
+            "{: <w$}",
+            inputs[i].title.to_string(),
+            w = width
+        ))];
+
+        let (text, style) = input_text(&mut inputs[i]);
+        let mut input_spns = vec![Span::styled(format!("{: <w$}", text, w = width), style)];
+
+        let mut underline_spns = vec![Span::from(underline_fmt.clone())];
+
+        if i == selected {
+            title_spns[0].patch_style(Style::default().fg(Color::LightBlue));
+            underline_spns[0].patch_style(Style::default().fg(Color::LightBlue));
+        }
 
         if split {
-            title = Line::from(format!(
-                "{: <w$}{}{: <w$}",
-                inputs[i].title.to_string(),
+            title_spns.push(Span::from(format!(
+                "{}{: <w$}",
                 &gap_fmt,
                 inputs[i + 3].title.to_string(),
                 w = width
+            )));
+
+            let (text, style) = input_text(&mut inputs[i + 3]);
+            input_spns.push(Span::styled(
+                format!("{}{: <w$}", &gap_fmt, text, w = width),
+                style,
             ));
-            input = Line::from(format!(
-                "{: <w$}{}{: <w$}",
-                input_text(&mut inputs[i]),
+
+            underline_spns.push(Span::from(format!(
+                "{}{: <w$}",
                 &gap_fmt,
-                input_text(&mut inputs[i + 3]),
+                &underline_fmt,
                 w = width
-            ));
-            underline = Line::from(format!("{}{}{}", underline_fmt, gap_fmt, underline_fmt));
-        } else {
-            title = Line::from(inputs[i].title.to_string());
-            input = Line::from(input_text(&mut inputs[i]));
-            underline = Line::from(underline_fmt.clone());
+            )));
         }
 
-        elements.push(title);
-        elements.push(input);
-        elements.push(underline);
+        elements.push(Line::from(title_spns));
+        elements.push(Line::from(input_spns));
+        elements.push(Line::from(underline_spns));
     }
 
     return elements;
 }
 
-fn input_text(input: &mut MenuInput) -> String {
+fn input_text(input: &mut MenuInput) -> (String, Style) {
     if input.value.len() > 0 {
-        return input.value.to_string();
+        return (input.value.to_string(), Style::default().fg(Color::White));
     } else {
-        return input.placeholder.to_string();
+        return (
+            input.placeholder.to_string(),
+            Style::default().fg(Color::DarkGray),
+        );
     }
 }
 

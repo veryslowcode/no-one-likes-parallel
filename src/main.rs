@@ -1,18 +1,15 @@
 use anyhow::Result;
+
 use crossterm::{
-    event::{self, Event, KeyEventKind, KeyCode},
+    event::{self, Event, KeyCode, KeyEventKind},
     execute,
-    terminal::{
-        disable_raw_mode, enable_raw_mode,
-        EnterAlternateScreen, LeaveAlternateScreen
-    }
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{
-    backend::CrosstermBackend, terminal::Terminal
-};
+use ratatui::{backend::CrosstermBackend, terminal::Terminal};
 use std::{
-    panic, time::Duration,
     io::{stdout, Stdout},
+    panic,
+    time::Duration,
 };
 
 mod common;
@@ -28,23 +25,21 @@ fn main() {
     set_panic_hook();
 
     let mut model = MenuModel::default();
-    let mut terminal = init_terminal()
-        .expect("Failed to initialize terminal");
+    let mut terminal = init_terminal().expect("Failed to initialize terminal");
 
     while model.get_state() != &State::Stopping {
-        let msg = handle_event()
-            .expect("Failed to poll events");
-        
-        terminal.draw(|frame| model.view(frame))
+        let msg = handle_event().expect("Failed to poll events");
+
+        terminal
+            .draw(|frame| model.view(frame))
             .expect("Failed to render frame");
-        
+
         if msg.is_some() {
             model.update(msg.unwrap());
         }
     }
 
-    reset_terminal()
-        .expect("Failed to reset terminal");
+    reset_terminal().expect("Failed to reset terminal");
 }
 
 fn handle_event() -> Result<Option<Message>> {
@@ -53,8 +48,8 @@ fn handle_event() -> Result<Option<Message>> {
         let event_read = event::read()?;
         return match event_read {
             Event::Key(k) => Ok(handle_key_event(k)),
-            _ => Ok(None)
-        }
+            _ => Ok(None),
+        };
     }
 
     Ok(None)
@@ -72,9 +67,9 @@ fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
             } else {
                 return None;
             }
-        },
-        _ => None
-    }
+        }
+        _ => None,
+    };
 }
 
 fn init_terminal() -> Result<NolpTerminal> {
@@ -101,8 +96,8 @@ fn set_panic_hook() {
         } else {
             let err_msg = info.payload().downcast_ref::<&str>();
             match err_msg {
-               Some(msg) => eprintln!("{:?}", msg),
-               None => {}
+                Some(msg) => eprintln!("{:?}", msg),
+                None => {}
             }
         }
     }));
