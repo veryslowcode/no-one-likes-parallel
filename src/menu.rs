@@ -231,6 +231,11 @@ fn input_elements(
                 &underline_fmt,
                 w = width
             )));
+
+            if i + 3 == selected {
+                title_spns[1].patch_style(Style::default().fg(Color::LightBlue));
+                underline_spns[1].patch_style(Style::default().fg(Color::LightBlue));
+            }
         }
 
         elements.push(Line::from(title_spns));
