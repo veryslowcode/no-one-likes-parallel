@@ -2,7 +2,7 @@ use ratatui::Frame;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
+    text::{Line, Span},
     widgets::{Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 use std::rc::Rc;
@@ -112,6 +112,20 @@ impl Nolp for MenuModel {
 impl Tea for MenuModel {
     fn update(&mut self, msg: Message) {
         match msg {
+            Message::PreviousElement => {
+                if self.selected == 0 {
+                    self.selected = (self.inputs.len() - 1) as u8;
+                } else {
+                    self.selected -= 1;
+                }
+            }
+            Message::NextElement => {
+                if usize::from(self.selected) >= self.inputs.len() - 1 {
+                    self.selected = 0;
+                } else {
+                    self.selected += 1;
+                }
+            }
             Message::Quit => self.set_state(State::Stopping),
         }
     }

@@ -1,19 +1,19 @@
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::Frame;
-use ratatui::layout::{
-    Constraint, Direction, Layout, Rect
-};
 
 #[derive(Debug, Default, Eq, PartialEq)]
 pub enum State {
-   #[default]
+    #[default]
     Running,
     Switching,
-    Stopping 
+    Stopping,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Message {
-    Quit
+    NextElement,
+    PreviousElement,
+    Quit,
 }
 
 pub trait Tea {
@@ -34,7 +34,7 @@ pub fn get_center_bounds(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
         .constraints([
             Constraint::Percentage(v_constraint),
             Constraint::Percentage(percent_y),
-            Constraint::Percentage(v_constraint)
+            Constraint::Percentage(v_constraint),
         ])
         .split(area);
     let h_center = Layout::default()
@@ -42,9 +42,9 @@ pub fn get_center_bounds(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
         .constraints([
             Constraint::Percentage(h_constraint),
             Constraint::Percentage(percent_x),
-            Constraint::Percentage(h_constraint)
+            Constraint::Percentage(h_constraint),
         ])
         .split(v_center[1]);
-    
+
     return h_center[1];
 }

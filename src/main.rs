@@ -68,6 +68,8 @@ fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
                 return None;
             }
         }
+        KeyCode::Char('[') => Some(Message::PreviousElement),
+        KeyCode::Char(']') => Some(Message::NextElement),
         _ => None,
     };
 }
