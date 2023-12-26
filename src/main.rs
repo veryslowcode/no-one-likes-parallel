@@ -1,6 +1,7 @@
 use anyhow::Result;
 
 use crossterm::{
+    cursor,
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -77,6 +78,7 @@ fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
 fn init_terminal() -> Result<NolpTerminal> {
     enable_raw_mode()?;
     execute!(stdout(), EnterAlternateScreen)?;
+    execute!(stdout(), cursor::Hide)?;
     let backend = NolpBackend::new(stdout());
     let terminal = NolpTerminal::new(backend)?;
     Ok(terminal)
@@ -84,6 +86,7 @@ fn init_terminal() -> Result<NolpTerminal> {
 
 fn reset_terminal() -> Result<()> {
     execute!(stdout(), LeaveAlternateScreen)?;
+    execute!(stdout(), cursor::Show)?;
     disable_raw_mode()?;
     Ok(())
 }

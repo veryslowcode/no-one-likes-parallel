@@ -9,6 +9,20 @@ use std::rc::Rc;
 
 use crate::common::*;
 
+#[derive(Debug)]
+struct InputDimensions {
+    gap: usize,
+    width: usize,
+    split: bool,
+}
+
+#[derive(Debug)]
+struct MenuSpans<'a> {
+    title: Vec<Span<'a>>,
+    input: Vec<Span<'a>>,
+    underline: Vec<Span<'a>>,
+}
+
 #[derive(Debug, PartialEq)]
 struct MenuInput {
     title: String,
@@ -131,18 +145,23 @@ impl Tea for MenuModel {
     }
 
     fn view(&mut self, frame: &mut Frame) {
-        let (bounds, layout) = menu_layout(frame.size());
+        let mut dimensions = InputDimensions {
+            split: true,
+            gap: 10_usize,
+            width: 18_usize,
+        };
+        let margin_top = 2_u16;
+        let (bounds, layout) = get_menu_layout(frame.size(), margin_top);
 
-        let input_gap = 10;
-        let input_width = 18;
-        let min_width = (input_width * 2) + input_gap;
+        // Width * 2 to account for side-by-side inputs
+        let min_width = (dimensions.width * 2) + dimensions.gap;
+        // Input count / 2 to account for split
+        // Multiplied by 3 to account for input line count
+        let mut min_height = (self.inputs.len() / 2) * 3 + usize::from(margin_top);
 
-        let mut split = true;
-        let mut min_height = (self.inputs.len() / 2) * 3 + 2;
-
-        if bounds.width < min_width {
-            min_height = self.inputs.len() * 3 + 2;
-            split = false;
+        if usize::from(bounds.width) < min_width {
+            min_height = self.inputs.len() * 3 + usize::from(margin_top);
+            dimensions.split = false;
         }
 
         let title = Block::default()
@@ -152,13 +171,8 @@ impl Tea for MenuModel {
 
         frame.render_widget(title, layout[0]);
 
-        let elements = input_elements(
-            &mut self.inputs,
-            self.selected.into(),
-            split,
-            input_width.into(),
-            input_gap.into(),
-        );
+        let elements = get_input_elements(&self.inputs, dimensions, self.selected.into());
+
         let menu = Paragraph::new(elements)
             .scroll((0, 0))
             .alignment(Alignment::Center);
@@ -176,77 +190,66 @@ impl Tea for MenuModel {
     }
 }
 
-fn input_elements(
-    inputs: &mut Vec<MenuInput>,
+fn get_input_elements(
+    inputs: &Vec<MenuInput>,
+    dimensions: InputDimensions,
     selected: usize,
-    split: bool,
-    width: usize,
-    gap: usize,
 ) -> Vec<Line> {
-    let gap_fmt = " ".repeat(gap);
-    let underline_fmt = "▔".repeat(width);
+    let gap_fmt = " ".repeat(dimensions.gap);
+    let underline_fmt = "▔".repeat(dimensions.width);
 
     let mut elements = Vec::new();
 
-    let iterations = if split {
+    let iterations = if dimensions.split {
         inputs.len() / 2
     } else {
         inputs.len()
     };
 
     for i in 0..iterations {
-        let mut title_spns = vec![Span::from(format!(
-            "{: <w$}",
-            inputs[i].title.to_string(),
-            w = width
-        ))];
+        let mut spans = get_input_spans(&inputs[i], dimensions.width, underline_fmt.clone());
 
-        let (text, style) = input_text(&mut inputs[i]);
-        let mut input_spns = vec![Span::styled(format!("{: <w$}", text, w = width), style)];
-
-        let mut underline_spns = vec![Span::from(underline_fmt.clone())];
-
-        if i == selected {
-            title_spns[0].patch_style(Style::default().fg(Color::LightBlue));
-            underline_spns[0].patch_style(Style::default().fg(Color::LightBlue));
+        if dimensions.split {
+            update_spans_split(
+                &inputs[i + 3],
+                &mut spans,
+                dimensions.width,
+                underline_fmt.clone(),
+                gap_fmt.clone(),
+            );
         }
 
-        if split {
-            title_spns.push(Span::from(format!(
-                "{}{: <w$}",
-                &gap_fmt,
-                inputs[i + 3].title.to_string(),
-                w = width
-            )));
+	let selected_style = Style::default().fg(Color::LightBlue);
+	if usize::from(i) == selected {
+	    spans.title[0].patch_style(selected_style);
+	    spans.underline[0].patch_style(selected_style);
+	} else if dimensions.split && usize::from(i + 3) == selected {
+	    spans.title[1].patch_style(selected_style);
+	    spans.underline[1].patch_style(selected_style);
+	}
 
-            let (text, style) = input_text(&mut inputs[i + 3]);
-            input_spns.push(Span::styled(
-                format!("{}{: <w$}", &gap_fmt, text, w = width),
-                style,
-            ));
-
-            underline_spns.push(Span::from(format!(
-                "{}{: <w$}",
-                &gap_fmt,
-                &underline_fmt,
-                w = width
-            )));
-
-            if i + 3 == selected {
-                title_spns[1].patch_style(Style::default().fg(Color::LightBlue));
-                underline_spns[1].patch_style(Style::default().fg(Color::LightBlue));
-            }
-        }
-
-        elements.push(Line::from(title_spns));
-        elements.push(Line::from(input_spns));
-        elements.push(Line::from(underline_spns));
+        elements.push(Line::from(spans.title));
+        elements.push(Line::from(spans.input));
+        elements.push(Line::from(spans.underline));
     }
 
     return elements;
 }
 
-fn input_text(input: &mut MenuInput) -> (String, Style) {
+fn get_input_spans<'a>(input: &'a MenuInput, width: usize, underline: String) -> MenuSpans<'a> {
+    let (text, style) = get_input_text(&input);
+    MenuSpans {
+        title: vec![Span::from(format!(
+            "{: <w$}",
+            input.title.to_string(),
+            w = width
+        ))],
+        input: vec![Span::styled(format!("{: <w$}", text, w = width), style)],
+        underline: vec![Span::from(underline)],
+    }
+}
+
+fn get_input_text(input: &MenuInput) -> (String, Style) {
     if input.value.len() > 0 {
         return (input.value.to_string(), Style::default().fg(Color::White));
     } else {
@@ -257,17 +260,45 @@ fn input_text(input: &mut MenuInput) -> (String, Style) {
     }
 }
 
-fn menu_layout(fsize: Rect) -> (Rect, Rc<[Rect]>) {
+fn get_menu_layout(fsize: Rect, margin_t: u16) -> (Rect, Rc<[Rect]>) {
     let bounds = get_center_bounds(50, 50, fsize);
 
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1),
-            Constraint::Length(2),
+            Constraint::Length(margin_t),
             Constraint::Min(3),
         ])
         .split(bounds);
 
     return (bounds, layout);
+}
+
+fn update_spans_split(
+    input: &MenuInput,
+    spans: &mut MenuSpans,
+    width: usize,
+    underline: String,
+    gap: String,
+) {
+    spans.title.push(Span::from(format!(
+        "{}{: <w$}",
+        &gap,
+        input.title.to_string(),
+        w = width
+    )));
+
+    let (text, style) = get_input_text(&input);
+    spans.input.push(Span::styled(
+        format!("{}{: <w$}", &gap, text, w = width),
+        style,
+    ));
+
+    spans.underline.push(Span::from(format!(
+        "{}{: <w$}",
+        &gap,
+        &underline,
+        w = width
+    )));
 }
