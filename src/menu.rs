@@ -25,6 +25,7 @@ struct MenuSpans<'a> {
 
 #[derive(Debug, PartialEq)]
 struct MenuInput {
+    limit: u8,
     title: String,
     value: String,
     placeholder: String,
@@ -41,6 +42,7 @@ pub struct MenuModel {
 impl Default for MenuInput {
     fn default() -> MenuInput {
         MenuInput {
+            limit: 100,
             title: String::from(""),
             value: String::from(""),
             placeholder: String::from(""),
@@ -54,13 +56,13 @@ impl MenuInput {
         return self;
     }
 
-    fn value(mut self, s: String) -> Self {
-        self.value = s;
+    fn placeholder(mut self, s: String) -> Self {
+        self.placeholder = s;
         return self;
     }
 
-    fn placeholder(mut self, s: String) -> Self {
-        self.placeholder = s;
+    fn limit(mut self, l: u8) -> Self {
+        self.limit = l;
         return self;
     }
 }
@@ -76,24 +78,28 @@ impl Default for MenuModel {
 
         inputs.push(
             MenuInput::default()
+                .limit(10)
                 .title(String::from("Baudrate"))
                 .placeholder(String::from("9600")),
         );
 
         inputs.push(
             MenuInput::default()
+                .limit(1)
                 .title(String::from("Data bits"))
                 .placeholder(String::from("8")),
         );
 
         inputs.push(
             MenuInput::default()
+                .limit(1)
                 .title(String::from("Stop bits"))
                 .placeholder(String::from("1")),
         );
 
         inputs.push(
             MenuInput::default()
+                .limit(4)
                 .title(String::from("Parity"))
                 .placeholder(String::from("Even")),
         );
@@ -141,7 +147,11 @@ impl Tea for MenuModel {
                 }
             }
             Message::Input(input) => {
-                self.inputs[usize::from(self.selected)].value.push(input);
+                let index = usize::from(self.selected);
+                let limit = self.inputs[index].limit.into();
+                if self.inputs[index].value.len() < limit {
+                    self.inputs[index].value.push(input);
+                }
             }
             Message::Backspace => {
                 let index = usize::from(self.selected);
