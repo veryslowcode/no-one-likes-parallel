@@ -246,7 +246,7 @@ fn get_input_elements(
 }
 
 fn get_input_spans<'a>(input: &'a MenuInput, width: usize, underline: String) -> MenuSpans<'a> {
-    let (text, style) = get_input_text(&input);
+    let (text, style) = get_input_text(&input, &width);
     MenuSpans {
         title: vec![Span::from(format!(
             "{: <w$}",
@@ -258,9 +258,17 @@ fn get_input_spans<'a>(input: &'a MenuInput, width: usize, underline: String) ->
     }
 }
 
-fn get_input_text(input: &MenuInput) -> (String, Style) {
+fn get_input_text(input: &MenuInput, width: &usize) -> (String, Style) {
     if input.value.len() > 0 {
-        return (input.value.to_string(), Style::default().fg(Color::White));
+        let text = &input.value.to_string();
+        let style = Style::default().fg(Color::White);
+        if input.value.len() > *width {
+            let slice_from = input.value.len() - 1 - width;
+            let slice = &text[slice_from..];
+            return (slice.to_string(), style);
+        } else {
+            return (text.to_string(), style);
+        }
     } else {
         return (
             input.placeholder.to_string(),
@@ -298,7 +306,7 @@ fn update_spans_split(
         w = width
     )));
 
-    let (text, style) = get_input_text(&input);
+    let (text, style) = get_input_text(&input, &width);
     spans.input.push(Span::styled(
         format!("{}{: <w$}", &gap, text, w = width),
         style,
