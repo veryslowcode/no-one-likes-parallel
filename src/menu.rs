@@ -95,7 +95,7 @@ impl Default for MenuModel {
         inputs.push(
             MenuInput::default()
                 .title(String::from("Parity"))
-                .placeholder(String::from("Event")),
+                .placeholder(String::from("Even")),
         );
 
         inputs.push(
@@ -209,18 +209,13 @@ fn get_input_elements(
 
     let mut elements = Vec::new();
 
-    let iterations = if dimensions.split {
-        inputs.len() / 2
-    } else {
-        inputs.len()
-    };
-
-    for i in 0..iterations {
+    let mut i = 0_usize;
+    while i < inputs.len() {
         let mut spans = get_input_spans(&inputs[i], dimensions.width, underline_fmt.clone());
 
         if dimensions.split {
             update_spans_split(
-                &inputs[i + 3],
+                &inputs[i + 1],
                 &mut spans,
                 dimensions.width,
                 underline_fmt.clone(),
@@ -232,7 +227,7 @@ fn get_input_elements(
         if usize::from(i) == selected {
             spans.title[0].patch_style(selected_style);
             spans.underline[0].patch_style(selected_style);
-        } else if dimensions.split && usize::from(i + 3) == selected {
+        } else if dimensions.split && usize::from(i + 1) == selected {
             spans.title[1].patch_style(selected_style);
             spans.underline[1].patch_style(selected_style);
         }
@@ -240,6 +235,12 @@ fn get_input_elements(
         elements.push(Line::from(spans.title));
         elements.push(Line::from(spans.input));
         elements.push(Line::from(spans.underline));
+
+        if dimensions.split {
+            i += 2;
+        } else {
+            i += 1;
+        }
     }
 
     return elements;
