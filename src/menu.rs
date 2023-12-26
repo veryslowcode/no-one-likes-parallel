@@ -140,6 +140,15 @@ impl Tea for MenuModel {
                     self.selected += 1;
                 }
             }
+            Message::Input(input) => {
+                self.inputs[usize::from(self.selected)].value.push(input);
+            }
+            Message::Backspace => {
+                let index = usize::from(self.selected);
+                if self.inputs[index].value.len() > 0 {
+                    self.inputs[index].value.pop();
+                }
+            }
             Message::Quit => self.set_state(State::Stopping),
         }
     }
@@ -219,14 +228,14 @@ fn get_input_elements(
             );
         }
 
-	let selected_style = Style::default().fg(Color::LightBlue);
-	if usize::from(i) == selected {
-	    spans.title[0].patch_style(selected_style);
-	    spans.underline[0].patch_style(selected_style);
-	} else if dimensions.split && usize::from(i + 3) == selected {
-	    spans.title[1].patch_style(selected_style);
-	    spans.underline[1].patch_style(selected_style);
-	}
+        let selected_style = Style::default().fg(Color::LightBlue);
+        if usize::from(i) == selected {
+            spans.title[0].patch_style(selected_style);
+            spans.underline[0].patch_style(selected_style);
+        } else if dimensions.split && usize::from(i + 3) == selected {
+            spans.title[1].patch_style(selected_style);
+            spans.underline[1].patch_style(selected_style);
+        }
 
         elements.push(Line::from(spans.title));
         elements.push(Line::from(spans.input));
