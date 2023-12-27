@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 use std::rc::Rc;
 
@@ -190,7 +190,7 @@ impl Tea for MenuModel {
 
         frame.render_widget(title, layout[0]);
 
-        let elements = get_input_elements(&self.inputs, dimensions, self.selected.into());
+        let mut elements = get_input_elements(&self.inputs, dimensions, self.selected.into());
 
         let menu = Paragraph::new(elements)
             .scroll((0, 0))
@@ -207,6 +207,35 @@ impl Tea for MenuModel {
             frame.render_stateful_widget(scrollbar, layout[2], &mut self.scroll);
         }
     }
+}
+
+fn get_button_elements(
+    dimensions: InputDimensions,
+    element_count: usize,
+    selected: usize,
+) -> Vec<Line> {
+    let mut buttons = Vec::new();
+
+    let mut cancel = Span::from("Cancel");
+    let mut start = Span::from("Start");
+
+    let selected_style = Style::default().fg(Color::LightBlue);
+
+    if selected == element_count {
+        cancel.patch_style(selected_style);
+    } else if selected == element_count + 1 {
+        start.patch_style(selected_style);
+    }
+
+    if dimensions.split {
+        let gap_span = Span::from(format!("{}", dimensions.gap.clone()));
+        buttons.push(Line::from(vec![cancel, gap_span, start]));
+    } else {
+        buttons.push(Line::from(cancel));
+        buttons.push(Line::from(start));
+    }
+
+    return buttons;
 }
 
 fn get_input_elements(
