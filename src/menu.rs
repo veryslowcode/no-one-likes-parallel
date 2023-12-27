@@ -296,7 +296,7 @@ fn get_button_elements<'a>(
     }
 
     if dimensions.split {
-        let gap_span = Span::from(format!("{}", dimensions.gap));
+        let gap_span = Span::from(format!("{}", " ".repeat(dimensions.gap)));
         buttons.push(Line::from(vec![cancel, gap_span, start]));
     } else {
         buttons.push(Line::from(cancel));
