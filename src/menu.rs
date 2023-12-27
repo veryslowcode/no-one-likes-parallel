@@ -149,7 +149,8 @@ impl Tea for MenuModel {
             Message::Input(input) => {
                 let index = usize::from(self.selected);
                 let limit = self.inputs[index].limit.into();
-                if self.inputs[index].value.len() < limit {
+                let valid = check_valid_input(&input, &index);
+                if self.inputs[index].value.len() < limit && valid {
                     self.inputs[index].value.push(input);
                 }
             }
@@ -211,6 +212,24 @@ impl Tea for MenuModel {
 
             frame.render_stateful_widget(scrollbar, layout[2], &mut self.scroll);
         }
+    }
+}
+
+fn check_valid_input(input: &char, selected: &usize) -> bool {
+    match selected {
+        1 => match input.to_digit(10) {
+            Some(_) => return true,
+            None => return false,
+        },
+        2 => match input.to_digit(10) {
+            Some(v) => return (5..=8).contains(&v),
+            None => return false,
+        },
+        3 => match input.to_digit(10) {
+            Some(v) => return (1..=3).contains(&v),
+            None => return false,
+        },
+        _ => return true,
     }
 }
 
