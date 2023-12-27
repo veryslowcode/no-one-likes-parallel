@@ -134,13 +134,13 @@ impl Tea for MenuModel {
         match msg {
             Message::PreviousElement => {
                 if self.selected == 0 {
-                    self.selected = (self.inputs.len() - 1) as u8;
+                    self.selected = (self.inputs.len() + 1) as u8;
                 } else {
                     self.selected -= 1;
                 }
             }
             Message::NextElement => {
-                if usize::from(self.selected) >= self.inputs.len() - 1 {
+                if usize::from(self.selected) >= self.inputs.len() + 1 {
                     self.selected = 0;
                 } else {
                     self.selected += 1;
@@ -190,7 +190,12 @@ impl Tea for MenuModel {
 
         frame.render_widget(title, layout[0]);
 
-        let mut elements = get_input_elements(&self.inputs, dimensions, self.selected.into());
+        let mut elements = get_input_elements(&self.inputs, &dimensions, self.selected.into());
+
+        let mut buttons =
+            get_button_elements(&dimensions, self.inputs.len() - 1, self.selected.into());
+
+        elements.append(&mut buttons);
 
         let menu = Paragraph::new(elements)
             .scroll((0, 0))
@@ -209,11 +214,11 @@ impl Tea for MenuModel {
     }
 }
 
-fn get_button_elements(
-    dimensions: InputDimensions,
-    element_count: usize,
+fn get_button_elements<'a>(
+    dimensions: &InputDimensions,
+    input_count: usize,
     selected: usize,
-) -> Vec<Line> {
+) -> Vec<Line<'a>> {
     let mut buttons = Vec::new();
 
     let mut cancel = Span::from("Cancel");
@@ -221,14 +226,14 @@ fn get_button_elements(
 
     let selected_style = Style::default().fg(Color::LightBlue);
 
-    if selected == element_count {
+    if selected == input_count + 1 {
         cancel.patch_style(selected_style);
-    } else if selected == element_count + 1 {
+    } else if selected == input_count + 2 {
         start.patch_style(selected_style);
     }
 
     if dimensions.split {
-        let gap_span = Span::from(format!("{}", dimensions.gap.clone()));
+        let gap_span = Span::from(format!("{}", dimensions.gap));
         buttons.push(Line::from(vec![cancel, gap_span, start]));
     } else {
         buttons.push(Line::from(cancel));
@@ -238,11 +243,11 @@ fn get_button_elements(
     return buttons;
 }
 
-fn get_input_elements(
-    inputs: &Vec<MenuInput>,
-    dimensions: InputDimensions,
+fn get_input_elements<'a>(
+    inputs: &'a Vec<MenuInput>,
+    dimensions: &InputDimensions,
     selected: usize,
-) -> Vec<Line> {
+) -> Vec<Line<'a>> {
     let gap_fmt = " ".repeat(dimensions.gap);
     let underline_fmt = "▔".repeat(dimensions.width);
 
