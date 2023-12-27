@@ -273,8 +273,8 @@ fn get_input_text(input: &MenuInput, width: &usize) -> (String, Style) {
     if input.value.len() > 0 {
         let text = &input.value.to_string();
         let style = Style::default().fg(Color::White);
-        if input.value.len() > *width {
-            let slice_from = input.value.len() - 1 - width;
+        if input.value.len() >= *width {
+            let slice_from = input.value.len() - width;
             let slice = &text[slice_from..];
             return (slice.to_string(), style);
         } else {
