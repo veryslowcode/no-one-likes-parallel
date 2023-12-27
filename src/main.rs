@@ -61,14 +61,13 @@ fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
         return None;
     }
 
-    return match key.code {
-        KeyCode::Char('c') => {
-            if key.modifiers == event::KeyModifiers::CONTROL {
-                return Some(Message::Quit);
-            } else {
-                return None;
-            }
+    if key.modifiers == event::KeyModifiers::CONTROL {
+        if key.code == KeyCode::Char('c') {
+            return Some(Message::Quit);
         }
+    }
+
+    return match key.code {
         KeyCode::Char('[') => Some(Message::PreviousElement),
         KeyCode::Char(']') => Some(Message::NextElement),
         KeyCode::Char(input) => Some(Message::Input(input)),

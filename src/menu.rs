@@ -106,6 +106,7 @@ impl Default for MenuModel {
 
         inputs.push(
             MenuInput::default()
+                .limit(7)
                 .title(String::from("Mode"))
                 .placeholder(String::from("Ascii")),
         );
