@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
 use std::rc::Rc;
 
@@ -28,6 +28,7 @@ struct MenuInput {
     limit: u8,
     title: String,
     value: String,
+    invalid: bool,
     placeholder: String,
 }
 
@@ -43,6 +44,7 @@ impl Default for MenuInput {
     fn default() -> MenuInput {
         MenuInput {
             limit: 100,
+            invalid: false,
             title: String::from(""),
             value: String::from(""),
             placeholder: String::from(""),
@@ -150,7 +152,7 @@ impl Tea for MenuModel {
             Message::Input(input) => {
                 let index = usize::from(self.selected);
                 let limit = self.inputs[index].limit.into();
-                let valid = check_valid_input(&input, &index);
+                let valid = check_valid_number_input(&input, &index);
                 if self.inputs[index].value.len() < limit && valid {
                     self.inputs[index].value.push(input);
                 }
@@ -164,6 +166,11 @@ impl Tea for MenuModel {
             Message::Enter => {
                 if usize::from(self.selected) == self.inputs.len() {
                     self.set_state(State::Stopping);
+                } else if usize::from(self.selected) == self.inputs.len() + 1 {
+                    if !check_valid_inputs(&mut self.inputs) {
+                        self.set_state(State::Switching);
+                        // TODO open serial connection
+                    }
                 }
             }
             Message::Quit => self.set_state(State::Stopping),
@@ -221,7 +228,7 @@ impl Tea for MenuModel {
     }
 }
 
-fn check_valid_input(input: &char, selected: &usize) -> bool {
+fn check_valid_number_input(input: &char, selected: &usize) -> bool {
     match selected {
         1 => match input.to_digit(10) {
             Some(_) => return true,
@@ -237,6 +244,37 @@ fn check_valid_input(input: &char, selected: &usize) -> bool {
         },
         _ => return true,
     }
+}
+
+fn check_valid_inputs(inputs: &mut Vec<MenuInput>) -> bool {
+    let mut valid = true;
+
+    for i in 0..(inputs.len() - 2) {
+        if inputs[i].value.is_empty() {
+            inputs[i].invalid = true;
+            valid = false;
+        } else {
+            inputs[i].invalid = false;
+        }
+    }
+
+    match inputs[4].value.to_lowercase().as_str() {
+        "even" | "odd" | "none" => inputs[4].invalid = false,
+        _ => {
+            inputs[4].invalid = true;
+            valid = false;
+        }
+    }
+
+    match inputs[5].value.to_lowercase().as_str() {
+        "ascii" | "decimal" | "hex" => inputs[5].invalid = false,
+        _ => {
+            inputs[5].invalid = true;
+            valid = false;
+        }
+    }
+
+    return valid;
 }
 
 fn get_button_elements<'a>(
@@ -317,7 +355,7 @@ fn get_input_elements<'a>(
 
 fn get_input_spans<'a>(input: &'a MenuInput, width: usize, underline: String) -> MenuSpans<'a> {
     let (text, style) = get_input_text(&input, &width);
-    MenuSpans {
+    let mut span = MenuSpans {
         title: vec![Span::from(format!(
             "{: <w$}",
             input.title.to_string(),
@@ -325,7 +363,15 @@ fn get_input_spans<'a>(input: &'a MenuInput, width: usize, underline: String) ->
         ))],
         input: vec![Span::styled(format!("{: <w$}", text, w = width), style)],
         underline: vec![Span::from(underline)],
+    };
+
+    if input.invalid {
+        let invalid_style = Style::default().fg(Color::LightRed);
+        span.title[0].patch_style(invalid_style);
+        span.underline[0].patch_style(invalid_style);
     }
+
+    return span;
 }
 
 fn get_input_text(input: &MenuInput, width: &usize) -> (String, Style) {
@@ -388,4 +434,10 @@ fn update_spans_split(
         &underline,
         w = width
     )));
+
+    if input.invalid {
+        let invalid_style = Style::default().fg(Color::LightRed);
+        spans.title[1].patch_style(invalid_style);
+        spans.underline[1].patch_style(invalid_style);
+    }
 }
