@@ -11,8 +11,9 @@ pub enum State {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Message {
-    Input(char),
+    Enter,
     Backspace,
+    Input(char),
     NextElement,
     PreviousElement,
     Quit,

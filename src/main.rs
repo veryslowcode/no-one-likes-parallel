@@ -72,6 +72,7 @@ fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
         KeyCode::Char(']') => Some(Message::NextElement),
         KeyCode::Char(input) => Some(Message::Input(input)),
         KeyCode::Backspace => Some(Message::Backspace),
+        KeyCode::Enter => Some(Message::Enter),
         _ => None,
     };
 }

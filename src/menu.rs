@@ -161,6 +161,11 @@ impl Tea for MenuModel {
                     self.inputs[index].value.pop();
                 }
             }
+            Message::Enter => {
+                if usize::from(self.selected) == self.inputs.len() {
+                    self.set_state(State::Stopping);
+                }
+            }
             Message::Quit => self.set_state(State::Stopping),
         }
     }
