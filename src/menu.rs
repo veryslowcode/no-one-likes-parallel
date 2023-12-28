@@ -35,6 +35,8 @@ struct MenuInput {
 #[derive(Debug, PartialEq)]
 pub struct MenuModel {
     state: State,
+    split: bool,
+    bounds: Rect,
     selected: u8,
     offset: usize,
     scroll: ScrollbarState,
@@ -116,7 +118,9 @@ impl Default for MenuModel {
 
         MenuModel {
             scroll: ScrollbarState::default().content_length(19),
+            bounds: Rect::new(0, 0, 0, 0),
             state: State::Running,
+            split: true,
             selected: 0,
             offset: 0,
             inputs,
@@ -152,12 +156,22 @@ impl Tea for MenuModel {
                 }
             }
             Message::ScrollUp => {
-                self.offset = self.offset.saturating_sub(1);
-                self.scroll = self.scroll.position(self.offset);
+                if self.offset != 0 {
+                    self.offset = self.offset.saturating_sub(1);
+                    self.scroll = self.scroll.position(self.offset);
+                }
             }
             Message::ScrollDown => {
-                self.offset = self.offset.saturating_add(1);
-                self.scroll = self.scroll.position(self.offset);
+                let max = if self.split { 9 } else { 19 };
+                if usize::from(self.bounds.height) > max {
+                    return;
+                } else if self.offset >= max {
+                    self.offset = max;
+                    self.scroll = self.scroll.position(self.offset);
+                } else {
+                    self.offset = self.offset.saturating_add(1);
+                    self.scroll = self.scroll.position(self.offset);
+                }
             }
             Message::Input(input) => {
                 let index = usize::from(self.selected);
@@ -188,23 +202,27 @@ impl Tea for MenuModel {
     }
 
     fn view(&mut self, frame: &mut Frame) {
+        self.split = true;
         let mut dimensions = InputDimensions {
-            split: true,
+            split: self.split,
             gap: 10_usize,
             width: 18_usize,
         };
         let margin_top = 2_u16;
         let (bounds, layout) = get_menu_layout(frame.size(), margin_top);
+        self.bounds = layout[2];
 
         // Width * 2 to account for side-by-side inputs
         let min_width = (dimensions.width * 2) + dimensions.gap;
         // Input count / 2 to account for split
         // Multiplied by 3 to account for input line count
-        let mut min_height = (self.inputs.len() / 2) * 3 + usize::from(margin_top);
+        // Add 1 to account for buttons
+        let mut min_height = (self.inputs.len() / 2) * 3 + usize::from(margin_top) + 1;
 
         if usize::from(bounds.width) < min_width {
-            min_height = self.inputs.len() * 3 + usize::from(margin_top);
-            dimensions.split = false;
+            min_height = self.inputs.len() * 3 + usize::from(margin_top) + 2;
+            self.split = false;
+            dimensions.split = self.split;
         }
 
         let title = Block::default()
