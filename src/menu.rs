@@ -36,6 +36,7 @@ struct MenuInput {
 pub struct MenuModel {
     state: State,
     selected: u8,
+    offset: usize,
     scroll: ScrollbarState,
     inputs: Vec<MenuInput>,
 }
@@ -114,9 +115,10 @@ impl Default for MenuModel {
         );
 
         MenuModel {
-            scroll: ScrollbarState::default().content_length(12),
+            scroll: ScrollbarState::default().content_length(19),
             state: State::Running,
             selected: 0,
+            offset: 0,
             inputs,
         }
     }
@@ -148,6 +150,14 @@ impl Tea for MenuModel {
                 } else {
                     self.selected += 1;
                 }
+            }
+            Message::ScrollUp => {
+                self.offset = self.offset.saturating_sub(1);
+                self.scroll = self.scroll.position(self.offset);
+            }
+            Message::ScrollDown => {
+                self.offset = self.offset.saturating_add(1);
+                self.scroll = self.scroll.position(self.offset);
             }
             Message::Input(input) => {
                 let index = usize::from(self.selected);
@@ -212,7 +222,7 @@ impl Tea for MenuModel {
         elements.append(&mut buttons);
 
         let menu = Paragraph::new(elements)
-            .scroll((0, 0))
+            .scroll((self.offset as u16, 0))
             .alignment(Alignment::Center);
 
         frame.render_widget(menu, layout[2]);

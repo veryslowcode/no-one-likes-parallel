@@ -1,5 +1,4 @@
 use anyhow::Result;
-
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEventKind},
@@ -12,6 +11,7 @@ use std::{
     panic,
     time::Duration,
 };
+use tokio;
 
 mod common;
 mod menu;
@@ -22,7 +22,8 @@ use crate::menu::MenuModel;
 type NolpBackend = CrosstermBackend<Stdout>;
 type NolpTerminal = Terminal<NolpBackend>;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     set_panic_hook();
 
     let mut model = MenuModel::default();
@@ -70,6 +71,8 @@ fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
     return match key.code {
         KeyCode::Char('[') => Some(Message::PreviousElement),
         KeyCode::Char(']') => Some(Message::NextElement),
+        KeyCode::Up => Some(Message::ScrollUp),
+        KeyCode::Down => Some(Message::ScrollDown),
         KeyCode::Char(input) => Some(Message::Input(input)),
         KeyCode::Backspace => Some(Message::Backspace),
         KeyCode::Enter => Some(Message::Enter),
