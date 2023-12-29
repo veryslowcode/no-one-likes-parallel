@@ -12,9 +12,7 @@ pub enum State {
 #[derive(Debug, Eq, PartialEq)]
 pub enum Message {
     Enter,
-    ScrollUp,
     Backspace,
-    ScrollDown,
     Input(char),
     NextElement,
     PreviousElement,

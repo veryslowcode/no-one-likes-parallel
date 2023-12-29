@@ -147,26 +147,10 @@ impl Tea for MenuModel {
                 } else {
                     self.selected -= 1;
                 }
-
-                if self.split {
-                    let adjusted_selec = if self.selected % 2 != 0 {
-                        self.selected - 1
-                    } else {
-                        self.selected
-                    };
-
-                    let offset = adjusted_selec / 2;
-                    self.offset = usize::from(offset * 3);
-                    self.scroll = self.scroll.position(0);
-                    self.scroll = self.scroll.position(self.offset);
-                } else {
-                    self.offset = if self.selected != 7 {
-                        usize::from(self.selected * 3)
-                    } else {
-                        usize::from(self.selected * 3 - 2)
-                    };
-                    self.scroll = self.scroll.position(0);
-                    self.scroll = self.scroll.position(self.offset);
+                let min_height = if self.split { 9 } else { 19 };
+                if self.bounds.height <= min_height {
+                    (self.scroll, self.offset) =
+                        update_scroll(self.scroll, self.selected, self.split);
                 }
             }
             Message::NextElement => {
@@ -175,44 +159,10 @@ impl Tea for MenuModel {
                 } else {
                     self.selected += 1;
                 }
-
-                if self.split {
-                    let adjusted_selec = if self.selected % 2 != 0 {
-                        self.selected - 1
-                    } else {
-                        self.selected
-                    };
-
-                    let offset = adjusted_selec / 2;
-                    self.offset = usize::from(offset * 3);
-                    self.scroll = self.scroll.position(0);
-                    self.scroll = self.scroll.position(self.offset);
-                } else {
-                    self.offset = if self.selected != 7 {
-                        usize::from(self.selected * 3)
-                    } else {
-                        usize::from(self.selected * 3 - 2)
-                    };
-                    self.scroll = self.scroll.position(0);
-                    self.scroll = self.scroll.position(self.offset);
-                }
-            }
-            Message::ScrollUp => {
-                if self.offset != 0 {
-                    self.offset = self.offset.saturating_sub(1);
-                    self.scroll = self.scroll.position(self.offset);
-                }
-            }
-            Message::ScrollDown => {
-                let max = if self.split { 9 } else { 19 };
-                if usize::from(self.bounds.height) > max {
-                    return;
-                } else if self.offset >= max {
-                    self.offset = max;
-                    self.scroll = self.scroll.position(self.offset);
-                } else {
-                    self.offset = self.offset.saturating_add(1);
-                    self.scroll = self.scroll.position(self.offset);
+                let min_height = if self.split { 9 } else { 19 };
+                if self.bounds.height <= min_height {
+                    (self.scroll, self.offset) =
+                        update_scroll(self.scroll, self.selected, self.split);
                 }
             }
             Message::Input(input) => {
@@ -464,9 +414,7 @@ fn get_input_text(input: &MenuInput, width: &usize) -> (String, Style) {
 }
 
 fn get_menu_layout(fsize: Rect, margin_t: u16) -> (Rect, Rc<[Rect]>) {
-    let mut bounds = get_center_bounds(50, 50, fsize);
-    // TODO remove
-    bounds.height = 7;
+    let bounds = get_center_bounds(50, 50, fsize);
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -477,6 +425,25 @@ fn get_menu_layout(fsize: Rect, margin_t: u16) -> (Rect, Rc<[Rect]>) {
         .split(bounds);
 
     return (bounds, layout);
+}
+
+fn update_scroll(scroll: ScrollbarState, selected: u8, split: bool) -> (ScrollbarState, usize) {
+    if split {
+        let adjustment = if selected % 2 != 0 {
+            selected - 1
+        } else {
+            selected
+        };
+        let offset = usize::from((adjustment / 2) * 3);
+        return (scroll.position(offset), offset);
+    } else {
+        let offset = if selected != 7 {
+            usize::from(selected * 3)
+        } else {
+            usize::from(selected * 3 - 2)
+        };
+        return (scroll.position(offset), offset);
+    }
 }
 
 fn update_spans_split(

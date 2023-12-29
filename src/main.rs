@@ -71,8 +71,6 @@ fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
     return match key.code {
         KeyCode::Char('[') => Some(Message::PreviousElement),
         KeyCode::Char(']') => Some(Message::NextElement),
-        KeyCode::Up => Some(Message::ScrollUp),
-        KeyCode::Down => Some(Message::ScrollDown),
         KeyCode::Char(input) => Some(Message::Input(input)),
         KeyCode::Backspace => Some(Message::Backspace),
         KeyCode::Enter => Some(Message::Enter),
