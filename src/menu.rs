@@ -147,12 +147,54 @@ impl Tea for MenuModel {
                 } else {
                     self.selected -= 1;
                 }
+
+                if self.split {
+                    let adjusted_selec = if self.selected % 2 != 0 {
+                        self.selected - 1
+                    } else {
+                        self.selected
+                    };
+
+                    let offset = adjusted_selec / 2;
+                    self.offset = usize::from(offset * 3);
+                    self.scroll = self.scroll.position(0);
+                    self.scroll = self.scroll.position(self.offset);
+                } else {
+                    self.offset = if self.selected != 7 {
+                        usize::from(self.selected * 3)
+                    } else {
+                        usize::from(self.selected * 3 - 2)
+                    };
+                    self.scroll = self.scroll.position(0);
+                    self.scroll = self.scroll.position(self.offset);
+                }
             }
             Message::NextElement => {
                 if usize::from(self.selected) >= self.inputs.len() + 1 {
                     self.selected = 0;
                 } else {
                     self.selected += 1;
+                }
+
+                if self.split {
+                    let adjusted_selec = if self.selected % 2 != 0 {
+                        self.selected - 1
+                    } else {
+                        self.selected
+                    };
+
+                    let offset = adjusted_selec / 2;
+                    self.offset = usize::from(offset * 3);
+                    self.scroll = self.scroll.position(0);
+                    self.scroll = self.scroll.position(self.offset);
+                } else {
+                    self.offset = if self.selected != 7 {
+                        usize::from(self.selected * 3)
+                    } else {
+                        usize::from(self.selected * 3 - 2)
+                    };
+                    self.scroll = self.scroll.position(0);
+                    self.scroll = self.scroll.position(self.offset);
                 }
             }
             Message::ScrollUp => {
@@ -295,7 +337,7 @@ fn check_valid_inputs(inputs: &mut Vec<MenuInput>) -> bool {
     }
 
     match inputs[5].value.to_lowercase().as_str() {
-        "ascii" | "decimal" | "hex" => inputs[5].invalid = false,
+        "ascii" | "decimal" | "hex" | "octal" => inputs[5].invalid = false,
         _ => {
             inputs[5].invalid = true;
             valid = false;
@@ -422,8 +464,9 @@ fn get_input_text(input: &MenuInput, width: &usize) -> (String, Style) {
 }
 
 fn get_menu_layout(fsize: Rect, margin_t: u16) -> (Rect, Rc<[Rect]>) {
-    let bounds = get_center_bounds(50, 50, fsize);
-
+    let mut bounds = get_center_bounds(50, 50, fsize);
+    // TODO remove
+    bounds.height = 7;
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
