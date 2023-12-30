@@ -103,8 +103,11 @@ fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
             KeyCode::Char('c') => {
                 return Some(Message::Quit);
             }
-            KeyCode::Char('p') => {
+            KeyCode::Char('l') => {
                 return Some(Message::Switching(Screen::DeviceList));
+            }
+            KeyCode::Char('n') => {
+                return Some(Message::Switching(Screen::Menu));
             }
             _ => {}
         }
