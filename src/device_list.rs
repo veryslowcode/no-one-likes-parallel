@@ -79,34 +79,11 @@ impl Tea for DeviceListModel {
     fn view(&mut self, frame: &mut Frame) {
         let (bounds, layout) = get_layout(frame.size(), 2);
         self.bounds = bounds;
-        let title = Block::default()
-            .title("Device List")
-            .title_alignment(Alignment::Center)
-            .title_style(Style::default().add_modifier(Modifier::BOLD));
+
+        render_title(frame, layout[0]);
 
         self.devices = get_available_devices().expect("Failed to determine available devices");
-        let mut text: Vec<Line> = Vec::new();
-
-        if self.devices.len() > 0 {
-            let style = Style::default().fg(crate::SELECTED_COLOR);
-            for (index, name) in self.devices.iter().enumerate() {
-                if index == self.selected {
-                    text.push(Line::styled(name.to_string(), style));
-                } else {
-                    text.push(Line::from(name.to_string()));
-                }
-            }
-        } else {
-            let style = Style::default().fg(crate::INVALID_COLOR);
-            text.push(Line::styled("No devices available", style));
-        }
-
-        let list = Paragraph::new(text)
-            .scroll((0, 0))
-            .alignment(Alignment::Center);
-
-        frame.render_widget(title, layout[0]);
-        frame.render_widget(list, layout[2]);
+        render_device_list(frame, layout[2], &self.devices, &self.selected);
     }
 }
 
@@ -121,4 +98,36 @@ fn get_layout(fsize: Rect, margin_t: u16) -> (Rect, Rc<[Rect]>) {
         ])
         .split(bounds);
     return (bounds, layout);
+}
+
+fn render_device_list(frame: &mut Frame, area: Rect, devices: &Vec<String>, selected: &usize) {
+    let mut text: Vec<Line> = Vec::new();
+
+    if devices.len() > 0 {
+        let style = Style::default().fg(crate::SELECTED_COLOR);
+        for (index, name) in devices.iter().enumerate() {
+            if index == *selected {
+                text.push(Line::styled(name.to_string(), style));
+            } else {
+                text.push(Line::from(name.to_string()));
+            }
+        }
+    } else {
+        let style = Style::default().fg(crate::INVALID_COLOR);
+        text.push(Line::styled("No devices available", style));
+    }
+
+    let list = Paragraph::new(text)
+        .scroll((0, 0))
+        .alignment(Alignment::Center);
+
+    frame.render_widget(list, area);
+}
+
+fn render_title(frame: &mut Frame, area: Rect) {
+    let title = Block::default()
+        .title("Device List")
+        .title_alignment(Alignment::Center)
+        .title_style(Style::default().add_modifier(Modifier::BOLD));
+    frame.render_widget(title, area);
 }
