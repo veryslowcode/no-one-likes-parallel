@@ -1,21 +1,28 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::Frame;
 
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
+pub enum Screen {
+    Menu,
+    DeviceList,
+}
+
+#[derive(Debug, Default, PartialEq)]
 pub enum State {
     #[default]
     Running,
-    Switching,
+    Switching(Screen),
     Stopping,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Message {
     Enter,
     Backspace,
     Input(char),
     NextElement,
     PreviousElement,
+    Switching(Screen),
     Quit,
 }
 
@@ -25,7 +32,7 @@ pub trait Tea {
 }
 
 pub trait Nolp {
-    fn get_state(&mut self) -> &State;
+    fn get_state(&self) -> &State;
     fn set_state(&mut self, s: State);
 }
 

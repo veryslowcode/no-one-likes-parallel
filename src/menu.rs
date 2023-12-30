@@ -129,7 +129,7 @@ impl Default for MenuModel {
 }
 
 impl Nolp for MenuModel {
-    fn get_state(&mut self) -> &State {
+    fn get_state(&self) -> &State {
         return &self.state;
     }
 
@@ -184,12 +184,13 @@ impl Tea for MenuModel {
                     self.set_state(State::Stopping);
                 } else if usize::from(self.selected) == self.inputs.len() + 1 {
                     if !check_valid_inputs(&mut self.inputs) {
-                        self.set_state(State::Switching);
+                        // self.set_state(State::Switching(Screen::SerialTerminal));
                         // TODO open serial connection
                     }
                 }
             }
             Message::Quit => self.set_state(State::Stopping),
+            _ => {}
         }
     }
 

@@ -14,30 +14,50 @@ use std::{
 use tokio;
 
 mod common;
+mod device_list;
 mod menu;
 
 use crate::common::*;
+use crate::device_list::DeviceListModel;
 use crate::menu::MenuModel;
 
 type NolpBackend = CrosstermBackend<Stdout>;
 type NolpTerminal = Terminal<NolpBackend>;
 
+#[derive(Debug, PartialEq)]
+struct Scene {
+    state: State,
+    menu: Option<MenuModel>,
+    device_list: Option<DeviceListModel>,
+}
+
+impl Default for Scene {
+    fn default() -> Scene {
+        Scene {
+            device_list: None,
+            state: State::Running,
+            menu: Some(MenuModel::default()),
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     set_panic_hook();
 
-    let mut model = MenuModel::default();
+    let mut scene = Scene::default();
     let mut terminal = init_terminal().expect("Failed to initialize terminal");
 
-    while model.get_state() != &State::Stopping {
+    while scene.state != State::Stopping {
         let msg = handle_event().expect("Failed to poll events");
 
-        terminal
-            .draw(|frame| model.view(frame))
-            .expect("Failed to render frame");
-
-        if msg.is_some() {
-            model.update(msg.unwrap());
+        match msg {
+            Some(m) => match m {
+                Message::Switching(s) => scene = switch_screen(s),
+                Message::Quit => scene.state = State::Stopping,
+                m => render_scene(&mut terminal, scene, m),
+            },
+            None => {}
         }
     }
 
@@ -63,8 +83,14 @@ fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
     }
 
     if key.modifiers == event::KeyModifiers::CONTROL {
-        if key.code == KeyCode::Char('c') {
-            return Some(Message::Quit);
+        match key.code {
+            KeyCode::Char('c') => {
+                return Some(Message::Quit);
+            }
+            KeyCode::Char('p') => {
+                return Some(Message::Switching(Screen::DeviceList));
+            }
+            _ => {}
         }
     }
 
@@ -94,6 +120,24 @@ fn reset_terminal() -> Result<()> {
     Ok(())
 }
 
+fn render_scene(terminal: &mut NolpTerminal, scene: Scene, msg: Message) {
+    if scene.menu.is_some() {
+        let mut model = scene.menu.unwrap();
+        terminal
+            .draw(|frame| model.view(frame))
+            .expect("Failed to render frame");
+
+        model.update(msg)
+    } else {
+        let mut model = scene.device_list.unwrap();
+        terminal
+            .draw(|frame| model.view(frame))
+            .expect("Failed to render frame");
+
+        model.update(msg)
+    }
+}
+
 fn set_panic_hook() {
     let hook = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
@@ -109,4 +153,16 @@ fn set_panic_hook() {
             }
         }
     }));
+}
+
+fn switch_screen(screen: Screen) -> Scene {
+    let mut scene = Scene::default();
+    match screen {
+        Screen::Menu => {}
+        Screen::DeviceList => {
+            scene.menu = None;
+            scene.device_list = Some(DeviceListModel::default());
+        }
+    }
+    return scene;
 }
