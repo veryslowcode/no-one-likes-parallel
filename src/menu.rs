@@ -129,8 +129,8 @@ impl Default for MenuModel {
 }
 
 impl Nolp for MenuModel {
-    fn get_state(&self) -> &State {
-        return &self.state;
+    fn get_state(&self) -> State {
+        return self.state.clone();
     }
 
     fn set_state(&mut self, s: State) {
@@ -139,7 +139,7 @@ impl Nolp for MenuModel {
 }
 
 impl Tea for MenuModel {
-    fn update(&mut self, msg: Message) {
+    fn update(&mut self, msg: Message) -> State {
         match msg {
             Message::PreviousElement => {
                 if self.selected == 0 {
@@ -192,6 +192,7 @@ impl Tea for MenuModel {
             Message::Quit => self.set_state(State::Stopping),
             _ => {}
         }
+        return self.get_state();
     }
 
     fn view(&mut self, frame: &mut Frame) {

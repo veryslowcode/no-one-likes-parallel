@@ -8,11 +8,10 @@ pub enum Screen {
     DeviceList,
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub enum State {
     #[default]
     Running,
-    Switching(Screen),
     Stopping,
 }
 
@@ -28,12 +27,12 @@ pub enum Message {
 }
 
 pub trait Tea {
-    fn update(&mut self, msg: Message);
+    fn update(&mut self, msg: Message) -> State;
     fn view(&mut self, f: &mut Frame);
 }
 
 pub trait Nolp {
-    fn get_state(&self) -> &State;
+    fn get_state(&self) -> State;
     fn set_state(&mut self, s: State);
 }
 

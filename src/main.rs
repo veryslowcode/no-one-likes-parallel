@@ -24,13 +24,6 @@ use crate::menu::MenuModel;
 type NolpBackend = CrosstermBackend<Stdout>;
 type NolpTerminal = Terminal<NolpBackend>;
 
-#[derive(Debug, Default, PartialEq)]
-pub enum State {
-    #[default]
-    Running,
-    Stopping,
-}
-
 #[derive(Debug, PartialEq)]
 struct Scene {
     menu: Option<MenuModel>,
@@ -64,14 +57,23 @@ async fn main() {
                 Message::Switching(s) => switch_screen(&mut scene, &mut screen, s),
                 m => match screen {
                     Screen::Menu => {
-                        render_scene(&mut terminal, scene.menu.as_mut().unwrap(), m);
+                        render_screen(&mut terminal, scene.menu.as_mut().unwrap());
+                        state = scene.menu.as_mut().unwrap().update(m);
                     }
                     Screen::DeviceList => {
-                        render_scene(&mut terminal, scene.device_list.as_mut().unwrap(), m);
+                        render_screen(&mut terminal, scene.device_list.as_mut().unwrap());
+                        state = scene.device_list.as_mut().unwrap().update(m);
                     }
                 },
             },
-            None => {}
+            None => match screen {
+                Screen::Menu => {
+                    render_screen(&mut terminal, scene.menu.as_mut().unwrap());
+                }
+                Screen::DeviceList => {
+                    render_screen(&mut terminal, scene.device_list.as_mut().unwrap());
+                }
+            },
         }
     }
 
@@ -134,12 +136,10 @@ fn reset_terminal() -> Result<()> {
     Ok(())
 }
 
-fn render_scene(terminal: &mut NolpTerminal, model: &mut impl Tea, msg: Message) {
+fn render_screen(terminal: &mut NolpTerminal, model: &mut impl Tea) {
     terminal
         .draw(|frame| model.view(frame))
         .expect("Failed to render frame");
-
-    model.update(msg)
 }
 
 fn set_panic_hook() {

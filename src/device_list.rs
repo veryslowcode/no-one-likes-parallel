@@ -30,8 +30,8 @@ impl Default for DeviceListModel {
 }
 
 impl Nolp for DeviceListModel {
-    fn get_state(&self) -> &State {
-        return &self.state;
+    fn get_state(&self) -> State {
+        return self.state.clone();
     }
 
     fn set_state(&mut self, s: State) {
@@ -40,7 +40,9 @@ impl Nolp for DeviceListModel {
 }
 
 impl Tea for DeviceListModel {
-    fn update(&mut self, msg: Message) {}
+    fn update(&mut self, msg: Message) -> State {
+        return self.get_state();
+    }
 
     fn view(&mut self, frame: &mut Frame) {
         let (bounds, layout) = get_layout(frame.size(), 2);
