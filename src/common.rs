@@ -1,5 +1,8 @@
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::Frame;
+use ratatui::{
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
+};
 
 #[derive(Debug, Default, PartialEq)]
 pub enum Screen {
@@ -35,6 +38,10 @@ pub trait Nolp {
     fn get_state(&self) -> State;
     fn set_state(&mut self, s: State);
 }
+
+pub const INVALID_COLOR: Color = Color::LightRed;
+pub const SELECTED_COLOR: Color = Color::LightBlue;
+pub const PLACEHOLDER_COLOR: Color = Color::DarkGray;
 
 pub fn get_center_bounds(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
     let v_constraint = (100 - percent_y) / 2;

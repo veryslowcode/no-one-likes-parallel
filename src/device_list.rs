@@ -15,6 +15,7 @@ pub struct DeviceListModel {
     state: State,
     bounds: Rect,
     offset: usize,
+    selected: usize,
     devices: Vec<String>,
     scroll: ScrollbarState,
 }
@@ -23,6 +24,7 @@ impl Default for DeviceListModel {
     fn default() -> DeviceListModel {
         DeviceListModel {
             offset: 0,
+            selected: 0,
             devices: Vec::new(),
             state: State::Running,
             scroll: ScrollbarState::default().content_length(19),
@@ -43,6 +45,34 @@ impl Nolp for DeviceListModel {
 
 impl Tea for DeviceListModel {
     fn update(&mut self, msg: Message) -> State {
+        match msg {
+            Message::PreviousElement => {
+                if self.devices.len() == 0 {
+                    return self.get_state();
+                }
+
+                if self.selected == 0 {
+                    self.selected = self.devices.len() - 1;
+                } else {
+                    self.selected -= 1;
+                }
+            }
+            Message::NextElement => {
+                if self.devices.len() == 0 {
+                    return self.get_state();
+                }
+
+                if self.selected == self.devices.len() - 1 {
+                    self.selected = 0;
+                } else {
+                    self.selected += 1;
+                }
+            }
+            Message::Enter => {
+                // TODO switch to menu with selected name
+            }
+            _ => {}
+        }
         return self.get_state();
     }
 
@@ -58,11 +88,17 @@ impl Tea for DeviceListModel {
         let mut text: Vec<Line> = Vec::new();
 
         if self.devices.len() > 0 {
-            for name in self.devices.iter() {
-                text.push(Line::from(name.to_string()));
+            let style = Style::default().fg(crate::SELECTED_COLOR);
+            for (index, name) in self.devices.iter().enumerate() {
+                if index == self.selected {
+                    text.push(Line::styled(name.to_string(), style));
+                } else {
+                    text.push(Line::from(name.to_string()));
+                }
             }
         } else {
-            text.push(Line::from("No devices available"));
+            let style = Style::default().fg(crate::INVALID_COLOR);
+            text.push(Line::styled("No devices available", style));
         }
 
         let list = Paragraph::new(text)
