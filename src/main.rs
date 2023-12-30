@@ -16,6 +16,7 @@ use tokio;
 mod common;
 mod device_list;
 mod menu;
+mod serial;
 
 use crate::common::*;
 use crate::device_list::DeviceListModel;

@@ -1,12 +1,14 @@
-use ratatui::widgets::{Block, Paragraph, Scrollbar, ScrollbarState};
-use ratatui::Frame;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
+    text::Line,
+    widgets::{Block, Paragraph, Scrollbar, ScrollbarState},
+    Frame,
 };
 use std::rc::Rc;
 
 use crate::common::*;
+use crate::serial::get_available_devices;
 
 #[derive(Debug, PartialEq)]
 pub struct DeviceListModel {
@@ -52,7 +54,18 @@ impl Tea for DeviceListModel {
             .title_alignment(Alignment::Center)
             .title_style(Style::default().add_modifier(Modifier::BOLD));
 
-        let list = Paragraph::new("No devices available")
+        self.devices = get_available_devices().expect("Failed to determine available devices");
+        let mut text: Vec<Line> = Vec::new();
+
+        if self.devices.len() > 0 {
+            for name in self.devices.iter() {
+                text.push(Line::from(name.to_string()));
+            }
+        } else {
+            text.push(Line::from("No devices available"));
+        }
+
+        let list = Paragraph::new(text)
             .scroll((0, 0))
             .alignment(Alignment::Center);
 
