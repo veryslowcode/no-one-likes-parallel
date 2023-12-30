@@ -24,9 +24,15 @@ use crate::menu::MenuModel;
 type NolpBackend = CrosstermBackend<Stdout>;
 type NolpTerminal = Terminal<NolpBackend>;
 
+#[derive(Debug, Default, PartialEq)]
+pub enum State {
+    #[default]
+    Running,
+    Stopping,
+}
+
 #[derive(Debug, PartialEq)]
 struct Scene {
-    state: State,
     menu: Option<MenuModel>,
     device_list: Option<DeviceListModel>,
 }
@@ -35,7 +41,6 @@ impl Default for Scene {
     fn default() -> Scene {
         Scene {
             device_list: None,
-            state: State::Running,
             menu: Some(MenuModel::default()),
         }
     }
@@ -45,17 +50,26 @@ impl Default for Scene {
 async fn main() {
     set_panic_hook();
 
+    let mut state = State::default();
     let mut scene = Scene::default();
+    let mut screen = Screen::default();
     let mut terminal = init_terminal().expect("Failed to initialize terminal");
 
-    while scene.state != State::Stopping {
+    while state != State::Stopping {
         let msg = handle_event().expect("Failed to poll events");
 
         match msg {
             Some(m) => match m {
-                Message::Switching(s) => scene = switch_screen(s),
-                Message::Quit => scene.state = State::Stopping,
-                m => render_scene(&mut terminal, scene, m),
+                Message::Quit => state = State::Stopping,
+                Message::Switching(s) => switch_screen(&mut scene, &mut screen, s),
+                m => match screen {
+                    Screen::Menu => {
+                        render_scene(&mut terminal, scene.menu.as_mut().unwrap(), m);
+                    }
+                    Screen::DeviceList => {
+                        render_scene(&mut terminal, scene.device_list.as_mut().unwrap(), m);
+                    }
+                },
             },
             None => {}
         }
@@ -120,22 +134,12 @@ fn reset_terminal() -> Result<()> {
     Ok(())
 }
 
-fn render_scene(terminal: &mut NolpTerminal, scene: Scene, msg: Message) {
-    if scene.menu.is_some() {
-        let mut model = scene.menu.unwrap();
-        terminal
-            .draw(|frame| model.view(frame))
-            .expect("Failed to render frame");
+fn render_scene(terminal: &mut NolpTerminal, model: &mut impl Tea, msg: Message) {
+    terminal
+        .draw(|frame| model.view(frame))
+        .expect("Failed to render frame");
 
-        model.update(msg)
-    } else {
-        let mut model = scene.device_list.unwrap();
-        terminal
-            .draw(|frame| model.view(frame))
-            .expect("Failed to render frame");
-
-        model.update(msg)
-    }
+    model.update(msg)
 }
 
 fn set_panic_hook() {
@@ -155,14 +159,17 @@ fn set_panic_hook() {
     }));
 }
 
-fn switch_screen(screen: Screen) -> Scene {
-    let mut scene = Scene::default();
-    match screen {
-        Screen::Menu => {}
+fn switch_screen(scene: &mut Scene, current: &mut Screen, new: Screen) {
+    match new {
+        Screen::Menu => {
+            scene.device_list = None;
+            scene.menu = Some(MenuModel::default());
+        }
         Screen::DeviceList => {
             scene.menu = None;
             scene.device_list = Some(DeviceListModel::default());
         }
     }
-    return scene;
+
+    *current = new;
 }
