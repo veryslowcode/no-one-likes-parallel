@@ -12,10 +12,19 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{backend::CrosstermBackend, terminal::Terminal};
+use ratatui::{
+    backend::CrosstermBackend,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::Style,
+    terminal::Terminal,
+    text::Line,
+    widgets::{Block, BorderType, Borders, Paragraph},
+    Frame,
+};
 use std::{
     io::{stdout, Stdout},
     panic,
+    rc::Rc,
     time::Duration,
 };
 use tokio;
@@ -43,6 +52,18 @@ struct Scene {
     menu: Option<MenuModel>,
     device_list: Option<DeviceListModel>,
 }
+
+/******************************************************************************/
+/*******************************************************************************
+* Local Constants
+*******************************************************************************/
+/******************************************************************************/
+const HELP_CAHR: char = 'h';
+const QUIT_CHAR: char = 'q';
+const MENU_CHAR: char = 'n';
+const DEVICE_LIST_CHAR: char = 'l';
+const NEXT_ELEMENT_CHAR: char = ']';
+const PREVIOUS_ELEMENT_CHAR: char = '[';
 
 /******************************************************************************/
 /*******************************************************************************
@@ -88,6 +109,28 @@ async fn main() {
 * Utility Functions
 *******************************************************************************/
 /******************************************************************************/
+fn get_frame_border<'a>() -> Block<'a> {
+    Block::default()
+        .title(" NOLP ")
+        .title_alignment(Alignment::Center)
+        .borders(Borders::ALL)
+        .border_type(BorderType::Rounded)
+}
+
+fn get_layout(frame: &mut Frame) -> Rc<[Rect]> {
+    Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(3), Constraint::Length(1)])
+        .split(frame.size())
+}
+
+fn get_message<'a>() -> Paragraph<'a> {
+    let style = Style::default().fg(crate::PLACEHOLDER_COLOR);
+    let commands = Line::styled(" Help (ctrl+h) ", style);
+    let help = Paragraph::new(commands).alignment(Alignment::Center);
+    return help;
+}
+
 fn handle_event() -> Result<Option<Message>> {
     let poll_rate = Duration::from_millis(250);
     if event::poll(poll_rate)? {
@@ -108,22 +151,25 @@ fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
 
     if key.modifiers == event::KeyModifiers::CONTROL {
         match key.code {
-            KeyCode::Char('c') => {
+            KeyCode::Char(QUIT_CHAR) => {
                 return Some(Message::Quit);
             }
-            KeyCode::Char('l') => {
+            KeyCode::Char(DEVICE_LIST_CHAR) => {
                 return Some(Message::Switching(Screen::DeviceList, None));
             }
-            KeyCode::Char('n') => {
+            KeyCode::Char(MENU_CHAR) => {
                 return Some(Message::Switching(Screen::Menu, None));
+            }
+            KeyCode::Char(HELP_CHAR) => {
+                // return Some(Message::Switching(Screen::Help, None));
             }
             _ => {}
         }
     }
 
     return match key.code {
-        KeyCode::Char('[') => Some(Message::PreviousElement),
-        KeyCode::Char(']') => Some(Message::NextElement),
+        KeyCode::Char(PREVIOUS_ELEMENT_CHAR) => Some(Message::PreviousElement),
+        KeyCode::Char(NEXT_ELEMENT_CHAR) => Some(Message::NextElement),
         KeyCode::Char(input) => Some(Message::Input(input)),
         KeyCode::Backspace => Some(Message::Backspace),
         KeyCode::Enter => Some(Message::Enter),
@@ -149,7 +195,15 @@ fn reset_terminal() -> Result<()> {
 
 fn render_screen(terminal: &mut NolpTerminal, model: &mut impl Tea) {
     terminal
-        .draw(|frame| model.view(frame))
+        .draw(|frame| {
+            let layout = get_layout(frame);
+            let frame_border = get_frame_border();
+            let message = get_message();
+
+            frame.render_widget(frame_border, frame.size());
+            model.view(frame);
+            frame.render_widget(message, layout[1]);
+        })
         .expect("Failed to render frame");
 }
 
