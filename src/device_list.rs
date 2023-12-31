@@ -10,7 +10,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::Line,
-    widgets::{Block, Paragraph, Scrollbar, ScrollbarState},
+    widgets::{Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
 };
 use std::rc::Rc;
@@ -59,6 +59,13 @@ enum SelectElement {
 
 /******************************************************************************/
 /*******************************************************************************
+* Local Constants
+*******************************************************************************/
+/******************************************************************************/
+const CONTENT_LENGTH: usize = 19;
+
+/******************************************************************************/
+/*******************************************************************************
 * Implementation
 *******************************************************************************/
 /******************************************************************************/
@@ -96,7 +103,9 @@ impl Tea for DeviceListModel {
         render_title(frame, layout[0]);
 
         self.devices = get_available_devices().expect("Failed to determine available devices");
-        render_device_list(frame, layout[2], &self.devices, &self.selected);
+
+        render_device_list(frame, layout[2], self);
+        render_scrollbar(frame, layout[2], self);
     }
 }
 
@@ -141,15 +150,20 @@ fn select_element(model: &mut DeviceListModel, direction: SelectElement) {
     } else {
         model.selected = nominal as usize;
     }
+
+    if model.bounds.height <= CONTENT_LENGTH as u16 {
+        model.offset = model.selected;
+        model.scroll = model.scroll.position(model.offset);
+    }
 }
 
-fn render_device_list(frame: &mut Frame, area: Rect, devices: &Vec<String>, selected: &usize) {
+fn render_device_list(frame: &mut Frame, area: Rect, model: &mut DeviceListModel) {
     let mut text: Vec<Line> = Vec::new();
 
-    if devices.len() > 0 {
+    if model.devices.len() > 0 {
         let style = Style::default().fg(crate::SELECTED_COLOR);
-        for (index, name) in devices.iter().enumerate() {
-            if index == *selected {
+        for (index, name) in model.devices.iter().enumerate() {
+            if index == model.selected {
                 text.push(Line::styled(name.to_string(), style));
             } else {
                 text.push(Line::from(name.to_string()));
@@ -161,10 +175,21 @@ fn render_device_list(frame: &mut Frame, area: Rect, devices: &Vec<String>, sele
     }
 
     let list = Paragraph::new(text)
-        .scroll((0, 0))
+        .scroll((model.offset as u16, 0))
         .alignment(Alignment::Center);
 
     frame.render_widget(list, area);
+}
+
+fn render_scrollbar(frame: &mut Frame, area: Rect, model: &mut DeviceListModel) {
+    if usize::from(area.height) <= CONTENT_LENGTH && model.devices.len() > 0 {
+        let scrollbar = Scrollbar::default()
+            .orientation(ScrollbarOrientation::VerticalRight)
+            .track_symbol(None)
+            .thumb_symbol("");
+
+        frame.render_stateful_widget(scrollbar, area, &mut model.scroll);
+    }
 }
 
 fn render_title(frame: &mut Frame, area: Rect) {
