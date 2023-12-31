@@ -73,7 +73,7 @@ async fn main() {
         match msg {
             Some(m) => match m {
                 Message::Quit => state = State::Stopping,
-                Message::Switching(s) => switch_screen(&mut scene, s),
+                Message::Switching(s, p) => switch_screen(&mut scene, s, p),
                 ms => render_and_update(&mut terminal, &mut scene, &mut state, Some(ms)),
             },
             None => render_and_update(&mut terminal, &mut scene, &mut state, None),
@@ -112,10 +112,10 @@ fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
                 return Some(Message::Quit);
             }
             KeyCode::Char('l') => {
-                return Some(Message::Switching(Screen::DeviceList));
+                return Some(Message::Switching(Screen::DeviceList, None));
             }
             KeyCode::Char('n') => {
-                return Some(Message::Switching(Screen::Menu));
+                return Some(Message::Switching(Screen::Menu, None));
             }
             _ => {}
         }
@@ -175,6 +175,12 @@ fn render_and_update(
             }
         }
     };
+
+    if let State::Switching(s, p) = state {
+        let screen = s.clone();
+        let parameters = p.clone();
+        switch_screen(scene, screen, parameters);
+    }
 }
 
 fn set_panic_hook() {
@@ -194,11 +200,20 @@ fn set_panic_hook() {
     }));
 }
 
-fn switch_screen(scene: &mut Scene, new: Screen) {
+fn switch_screen(scene: &mut Scene, new: Screen, parameters: Option<PortParameters>) {
     match new {
         Screen::Menu => {
+            let model: MenuModel;
+            match parameters {
+                Some(p) => {
+                    model = MenuModel::new(p.name.unwrap());
+                }
+                None => {
+                    model = MenuModel::default();
+                }
+            }
             scene.device_list = None;
-            scene.menu = Some(MenuModel::default());
+            scene.menu = Some(model);
         }
         Screen::DeviceList => {
             scene.menu = None;

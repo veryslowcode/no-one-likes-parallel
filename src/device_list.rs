@@ -89,6 +89,7 @@ impl Tea for DeviceListModel {
                 select_element(self, SelectElement::Next);
             }
             Message::Enter => {
+                switch_screen(self);
                 // TODO switch to menu with selected name
             }
             _ => {}
@@ -198,4 +199,16 @@ fn render_title(frame: &mut Frame, area: Rect) {
         .title_alignment(Alignment::Center)
         .title_style(Style::default().add_modifier(Modifier::BOLD));
     frame.render_widget(title, area);
+}
+
+fn switch_screen(model: &mut DeviceListModel) {
+    if model.devices.len() > 0 {
+        let port_name = model.devices[model.selected].clone();
+        model.state = State::Switching(
+            Screen::Menu,
+            Some(PortParameters::default().name(port_name)),
+        );
+    } else {
+        model.state = State::Switching(Screen::Menu, None);
+    }
 }

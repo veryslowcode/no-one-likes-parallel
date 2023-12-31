@@ -8,7 +8,7 @@
 use ratatui::Frame;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
+    style::Color,
 };
 
 /******************************************************************************/
@@ -27,19 +27,44 @@ pub enum Screen {
 pub enum State {
     #[default]
     Running,
-    Switching(Screen),
     Stopping,
+    Switching(Screen, Option<PortParameters>),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Message {
+    Quit,
     Enter,
     Backspace,
     Input(char),
     NextElement,
     PreviousElement,
-    Switching(Screen),
-    Quit,
+    Switching(Screen, Option<PortParameters>),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Parity {
+    Odd,
+    Even,
+    None,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Mode {
+    Hex,
+    Octal,
+    Ascii,
+    Decimal,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PortParameters {
+    pub name: Option<String>,
+    pub baud_rate: Option<u32>,
+    pub data_bits: Option<u8>,
+    pub stop_bits: Option<u8>,
+    pub parity: Option<Parity>,
+    pub mode: Option<Mode>,
 }
 
 pub trait Tea {
@@ -60,6 +85,31 @@ pub trait Nolp {
 pub const INVALID_COLOR: Color = Color::LightRed;
 pub const SELECTED_COLOR: Color = Color::LightBlue;
 pub const PLACEHOLDER_COLOR: Color = Color::DarkGray;
+
+/******************************************************************************/
+/*******************************************************************************
+* Implementation
+*******************************************************************************/
+/******************************************************************************/
+impl Default for PortParameters {
+    fn default() -> PortParameters {
+        PortParameters {
+            name: None,
+            baud_rate: None,
+            data_bits: None,
+            stop_bits: None,
+            parity: None,
+            mode: None,
+        }
+    }
+}
+
+impl PortParameters {
+    pub fn name(&mut self, n: String) -> Self {
+        self.name = Some(n);
+        return self.clone();
+    }
+}
 
 /******************************************************************************/
 /*******************************************************************************

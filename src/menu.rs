@@ -30,11 +30,11 @@ struct MenuSpans<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct MenuInput {
+pub struct MenuInput {
     limit: usize,
     title: String,
-    value: String,
     invalid: bool,
+    pub value: String,
     placeholder: String,
 }
 
@@ -48,7 +48,7 @@ pub struct MenuModel {
     min_width: usize,
     min_height: usize,
     scroll: ScrollbarState,
-    inputs: Vec<MenuInput>,
+    pub inputs: Vec<MenuInput>,
 }
 
 /******************************************************************************/
@@ -167,6 +167,14 @@ impl Default for MenuModel {
             offset: 0,
             inputs,
         }
+    }
+}
+
+impl MenuModel {
+    pub fn new(port: String) -> MenuModel {
+        let mut model = MenuModel::default();
+        model.inputs[0].value = port;
+        return model;
     }
 }
 
@@ -478,7 +486,7 @@ fn update_state(model: &mut MenuModel) {
         model.set_state(State::Stopping);
     } else if model.selected == start_btn {
         if validate_values(model) {
-            model.set_state(State::Switching(Screen::Menu))
+            model.set_state(State::Switching(Screen::Menu, None))
         }
     }
 }
