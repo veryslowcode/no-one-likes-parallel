@@ -48,6 +48,17 @@ impl Default for DeviceListModel {
 
 /******************************************************************************/
 /*******************************************************************************
+* Internal Interface
+*******************************************************************************/
+/******************************************************************************/
+#[derive(Debug, PartialEq)]
+enum SelectElement {
+    Previous,
+    Next,
+}
+
+/******************************************************************************/
+/*******************************************************************************
 * Implementation
 *******************************************************************************/
 /******************************************************************************/
@@ -65,26 +76,10 @@ impl Tea for DeviceListModel {
     fn update(&mut self, msg: Message) -> State {
         match msg {
             Message::PreviousElement => {
-                if self.devices.len() == 0 {
-                    return self.get_state();
-                }
-
-                if self.selected == 0 {
-                    self.selected = self.devices.len() - 1;
-                } else {
-                    self.selected -= 1;
-                }
+                select_element(self, SelectElement::Previous);
             }
             Message::NextElement => {
-                if self.devices.len() == 0 {
-                    return self.get_state();
-                }
-
-                if self.selected == self.devices.len() - 1 {
-                    self.selected = 0;
-                } else {
-                    self.selected += 1;
-                }
+                select_element(self, SelectElement::Next);
             }
             Message::Enter => {
                 // TODO switch to menu with selected name
@@ -121,6 +116,31 @@ fn get_layout(fsize: Rect, margin_t: u16) -> (Rect, Rc<[Rect]>) {
         ])
         .split(bounds);
     return (bounds, layout);
+}
+
+fn select_element(model: &mut DeviceListModel, direction: SelectElement) {
+    if model.devices.len() == 0 {
+        return;
+    }
+
+    let (comparison, nominal, alternate) = match direction {
+        SelectElement::Previous => (
+            model.selected == 0,
+            model.selected as i32 - 1,
+            model.devices.len() - 1,
+        ),
+        SelectElement::Next => (
+            model.selected == model.devices.len() - 1,
+            model.selected as i32 + 1,
+            0,
+        ),
+    };
+
+    if comparison {
+        model.selected = alternate;
+    } else {
+        model.selected = nominal as usize;
+    }
 }
 
 fn render_device_list(frame: &mut Frame, area: Rect, devices: &Vec<String>, selected: &usize) {

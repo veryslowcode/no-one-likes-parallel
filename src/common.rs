@@ -16,7 +16,7 @@ use ratatui::{
 * Public Interface
 *******************************************************************************/
 /******************************************************************************/
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub enum Screen {
     #[default]
     Menu,
@@ -27,6 +27,7 @@ pub enum Screen {
 pub enum State {
     #[default]
     Running,
+    Switching(Screen),
     Stopping,
 }
 
