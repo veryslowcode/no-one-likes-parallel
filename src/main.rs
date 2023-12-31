@@ -58,7 +58,7 @@ struct Scene {
 * Local Constants
 *******************************************************************************/
 /******************************************************************************/
-const HELP_CAHR: char = 'h';
+const HELP_CHAR: char = 'h';
 const QUIT_CHAR: char = 'q';
 const MENU_CHAR: char = 'n';
 const DEVICE_LIST_CHAR: char = 'l';
@@ -124,9 +124,19 @@ fn get_layout(frame: &mut Frame) -> Rc<[Rect]> {
         .split(frame.size())
 }
 
-fn get_message<'a>() -> Paragraph<'a> {
-    let style = Style::default().fg(crate::PLACEHOLDER_COLOR);
-    let commands = Line::styled(" Help (ctrl+h) ", style);
+fn get_message<'a>(model: &mut impl Nolp) -> Paragraph<'a> {
+    let mut style = Style::default().fg(crate::PLACEHOLDER_COLOR);
+    let mut message = String::from(format!(
+        " Help (ctrl+{}) | Quit (ctrl+{}) ",
+        HELP_CHAR, QUIT_CHAR
+    ));
+
+    if let State::Error(m) = model.get_state() {
+        style = style.fg(crate::INVALID_COLOR);
+        message = m;
+    }
+
+    let commands = Line::styled(message, style);
     let help = Paragraph::new(commands).alignment(Alignment::Center);
     return help;
 }
@@ -193,12 +203,12 @@ fn reset_terminal() -> Result<()> {
     Ok(())
 }
 
-fn render_screen(terminal: &mut NolpTerminal, model: &mut impl Tea) {
+fn render_screen(terminal: &mut NolpTerminal, model: &mut (impl Tea + Nolp)) {
     terminal
         .draw(|frame| {
             let layout = get_layout(frame);
             let frame_border = get_frame_border();
-            let message = get_message();
+            let message = get_message(model);
 
             frame.render_widget(frame_border, frame.size());
             model.view(frame);

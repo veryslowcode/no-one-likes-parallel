@@ -487,6 +487,10 @@ fn update_state(model: &mut MenuModel) {
     } else if model.selected == start_btn {
         if validate_values(model) {
             model.set_state(State::Switching(Screen::Menu, None))
+        } else {
+            model.set_state(State::Error(String::from(
+                " Invalid input (ctrl+h) for help ",
+            )));
         }
     }
 }

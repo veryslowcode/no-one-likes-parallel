@@ -28,6 +28,7 @@ pub enum State {
     #[default]
     Running,
     Stopping,
+    Error(String),
     Switching(Screen, Option<PortParameters>),
 }
 
