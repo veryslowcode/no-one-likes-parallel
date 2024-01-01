@@ -55,6 +55,7 @@ struct Scene {
     screen: Screen,
     help: Option<HelpModel>,
     menu: Option<MenuModel>,
+    terminal: Option<TerminalModel>,
     device_list: Option<DeviceListModel>,
 }
 
@@ -66,10 +67,15 @@ struct Scene {
 impl Default for Scene {
     fn default() -> Scene {
         Scene {
+            // help: None,
+            // device_list: None,
+            // screen: Screen::default(),
+            // menu: Some(MenuModel::default()),
             help: None,
+            menu: None,
             device_list: None,
-            screen: Screen::default(),
-            menu: Some(MenuModel::default()),
+            screen: Screen::Terminal,
+            terminal: Some(TerminalModel::default()),
         }
     }
 }
@@ -239,6 +245,13 @@ fn render_and_update(
                 *state = model.update(msg.unwrap());
             }
         }
+        Screen::Terminal => {
+            let model = scene.terminal.as_mut().unwrap();
+            render_screen(terminal, model);
+            if msg.is_some() {
+                *state = model.update(msg.unwrap());
+            }
+        }
     };
 
     if let State::Switching(s, p) = state {
@@ -279,18 +292,27 @@ fn switch_screen(scene: &mut Scene, new: Screen, parameters: Option<PortParamete
                 }
             }
             scene.help = None;
+            scene.terminal = None;
             scene.device_list = None;
             scene.menu = Some(model);
         }
         Screen::DeviceList => {
             scene.menu = None;
             scene.help = None;
+            scene.terminal = None;
             scene.device_list = Some(DeviceListModel::default());
         }
         Screen::Help => {
             scene.menu = None;
+            scene.terminal = None;
             scene.device_list = None;
             scene.help = Some(HelpModel::new(scene.screen.clone(), parameters));
+        }
+        Screen::Terminal => {
+            scene.help = None;
+            scene.menu = None;
+            scene.device_list = None;
+            scene.terminal = Some(TerminalModel::default());
         }
     }
 

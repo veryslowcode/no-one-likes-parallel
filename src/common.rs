@@ -21,6 +21,7 @@ pub enum Screen {
     #[default]
     Menu,
     Help,
+    Terminal,
     DeviceList,
 }
 
