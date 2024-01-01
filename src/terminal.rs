@@ -27,8 +27,9 @@ use crate::common::*;
 pub struct TerminalModel {
     state: State,
     bounds: Rect,
+    input: String,
     offset: usize,
-    buffer: Vec<String>,
+    buffer: Vec<i32>,
     scroll: ScrollbarState,
     parameters: PortParameters,
 }
@@ -38,10 +39,7 @@ pub struct TerminalModel {
 * Local Constants
 *******************************************************************************/
 /******************************************************************************/
-const PADDING_TOP: u16 = 2;
-const PADDING_LEFT: u16 = 2;
-const PADDING_RIGHT: u16 = 2;
-const PADDING_BOTTOM: u16 = 1;
+const PADDING: u16 = 1;
 
 /******************************************************************************/
 /*******************************************************************************
@@ -52,8 +50,9 @@ impl Default for TerminalModel {
     fn default() -> TerminalModel {
         TerminalModel {
             offset: 0,
-            buffer: Vec::new(),
+            buffer: vec![0xA5; 1024],
             state: State::Running,
+            input: String::from(""),
             bounds: Rect::default(),
             scroll: ScrollbarState::default(),
             parameters: PortParameters::default(),
@@ -82,16 +81,25 @@ impl Nolp for TerminalModel {
 
 impl Tea for TerminalModel {
     fn update(&mut self, msg: Message) -> State {
+        match msg {
+            Message::Input(input) => {
+                self.input.push(input);
+            }
+            Message::Backspace => {
+                if self.input.len() > 0 {
+                    self.input.pop();
+                }
+            }
+            Message::Enter => {
+                // TODO send to port
+                self.input = String::from("");
+            }
+            _ => {}
+        }
         return self.get_state();
     }
 
     fn view(&mut self, frame: &mut Frame) {
-        // DEBUG CODE remove
-        for i in 0..1024 {
-            self.buffer.push(format!("String {}", i));
-        }
-        // ----------------
-
         self.bounds = frame.size();
         let layout = get_layout(self.bounds);
 
@@ -118,18 +126,25 @@ fn render_input(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
         .title_alignment(Alignment::Left)
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded);
-    let input = Paragraph::new("").block(block);
+    let input = Paragraph::new(model.input.clone()).block(block);
     frame.render_widget(input, area);
 }
 
 fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
-    let block = Block::default().padding(Padding::new(
-        PADDING_LEFT,
-        PADDING_RIGHT,
-        PADDING_TOP,
-        PADDING_BOTTOM,
-    ));
-    let terminal = Paragraph::new(model.buffer.join(""))
+    let block = Block::default().padding(Padding::uniform(PADDING));
+    //    let mode = model.parameters.mode.clone().unwrap();
+    let mode = Mode::Octal;
+    let encoded: String = model
+        .buffer
+        .iter()
+        .map(|value| match mode {
+            Mode::Hex => format!("{:#X} ", value),
+            Mode::Octal => format!("{:#o} ", value),
+            // TODO implement ascii
+            _ => value.to_string() + " ",
+        })
+        .collect();
+    let terminal = Paragraph::new(encoded)
         .block(block)
         .wrap(Wrap { trim: false });
     frame.render_widget(terminal, area);
