@@ -35,7 +35,7 @@ pub struct HelpModel {
 * Local Constants
 *******************************************************************************/
 /******************************************************************************/
-const CONTENT_LENGTH: usize = 19;
+const CONTENT_LENGTH: usize = 18;
 const MARGIN_TOP: usize = 2;
 
 /******************************************************************************/
@@ -77,11 +77,19 @@ impl Tea for HelpModel {
     fn update(&mut self, msg: Message) -> State {
         match msg {
             Message::PreviousElement => {
-                self.offset -= 1;
+                if self.offset == 0 {
+                    self.offset = CONTENT_LENGTH;
+                } else {
+                    self.offset -= 1;
+                }
                 self.scroll = self.scroll.position(self.offset);
             }
             Message::NextElement => {
-                self.offset += 1;
+                if self.offset >= CONTENT_LENGTH {
+                    self.offset = 0;
+                } else {
+                    self.offset += 1;
+                }
                 self.scroll = self.scroll.position(self.offset);
             }
             Message::Enter => {
@@ -107,9 +115,55 @@ impl Tea for HelpModel {
 * Utility Functions
 *******************************************************************************/
 /******************************************************************************/
+fn get_input_info<'a>(width: usize) -> Vec<Line<'a>> {
+    let mut info: Vec<Line> = Vec::new();
+    let style = Style::default().fg(crate::PLACEHOLDER_COLOR);
+
+    info.push(Line::from("Menu Input - Expected Value"));
+    info.push(Line::from(""));
+
+    info.push(Line::from(vec![
+        Span::from(format!("{: <9}", "Port")),
+        Span::styled(format!("{: >w$}", "Port name/path", w = width), style),
+    ]));
+
+    info.push(Line::from(vec![
+        Span::from(format!("{: <9}", "Baudrate")),
+        Span::styled(format!("{: >w$}", "Serialport baudrate", w = width), style),
+    ]));
+
+    info.push(Line::from(vec![
+        Span::from("Data bits"),
+        Span::styled(format!("{: >w$}", "5 - 8", w = width), style),
+    ]));
+
+    info.push(Line::from(vec![
+        Span::from("Stop bits"),
+        Span::styled(format!("{: >w$}", "1|2|3", w = width), style),
+    ]));
+
+    info.push(Line::from(vec![
+        Span::from(format!("{: <9}", "Parity")),
+        Span::styled(format!("{: >w$}", "None|Even|Odd", w = width), style),
+    ]));
+
+    info.push(Line::from(vec![
+        Span::from(format!("{: <7}", "Mode")),
+        Span::styled(
+            format!("{: >w$}", "Ascii|Decimal|Hex|Octal", w = width),
+            style,
+        ),
+    ]));
+
+    return info;
+}
+
 fn get_keymap<'a>(width: usize) -> Vec<Line<'a>> {
     let mut keymap: Vec<Line> = Vec::new();
     let style = Style::default().fg(crate::PLACEHOLDER_COLOR);
+
+    keymap.push(Line::from("Keymap (Views)"));
+    keymap.push(Line::from(""));
 
     keymap.push(Line::from(vec![
         Span::from(format!("ctrl+{}", MENU_CHAR)),
@@ -125,6 +179,22 @@ fn get_keymap<'a>(width: usize) -> Vec<Line<'a>> {
         Span::from(format!("ctrl+{}", QUIT_CHAR)),
         Span::styled(format!("{: >w$}", "Quits application", w = width), style),
     ]));
+
+    keymap.push(Line::from(""));
+    keymap.push(Line::from("Keymap (Movement)"));
+    keymap.push(Line::from(""));
+
+    keymap.push(Line::from(vec![
+        Span::from(format!("ctrl+{}", PREVIOUS_ELEMENT_CHAR)),
+        Span::styled(format!("{: >w$}", "Previous/scroll up", w = width), style),
+    ]));
+
+    keymap.push(Line::from(vec![
+        Span::from(format!("ctrl+{}", NEXT_ELEMENT_CHAR)),
+        Span::styled(format!("{: >w$}", "Next/scroll down", w = width), style),
+    ]));
+
+    keymap.push(Line::from(""));
 
     return keymap;
 }
@@ -147,6 +217,7 @@ fn render_help(frame: &mut Frame, area: Rect, model: &mut HelpModel) {
     let width = 24;
 
     text.append(&mut get_keymap(width));
+    text.append(&mut get_input_info(width - 3));
 
     let help = Paragraph::new(text)
         .scroll((model.offset as u16, 0))
