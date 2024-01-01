@@ -27,7 +27,7 @@ pub struct HelpModel {
     offset: usize,
     caller: Screen,
     scroll: ScrollbarState,
-    // TODO implement caller state
+    parameters: Option<PortParameters>,
 }
 
 /******************************************************************************/
@@ -47,6 +47,7 @@ impl Default for HelpModel {
     fn default() -> HelpModel {
         HelpModel {
             offset: 0,
+            parameters: None,
             caller: Screen::Menu,
             state: State::Running,
             bounds: Rect::default(),
@@ -56,8 +57,9 @@ impl Default for HelpModel {
 }
 
 impl HelpModel {
-    pub fn new(caller: Screen) -> HelpModel {
+    pub fn new(caller: Screen, parameters: Option<PortParameters>) -> HelpModel {
         let mut model = HelpModel::default();
+        model.parameters = parameters;
         model.caller = caller;
         return model;
     }
@@ -246,5 +248,5 @@ fn render_title(frame: &mut Frame, area: Rect) {
 }
 
 fn switch_screen(model: &mut HelpModel) {
-    model.state = State::Switching(model.caller.to_owned(), None);
+    model.state = State::Switching(model.caller.to_owned(), model.parameters.to_owned());
 }

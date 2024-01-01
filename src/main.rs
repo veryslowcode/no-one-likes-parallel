@@ -286,7 +286,7 @@ fn switch_screen(scene: &mut Scene, new: Screen, parameters: Option<PortParamete
         Screen::Help => {
             scene.menu = None;
             scene.device_list = None;
-            scene.help = Some(HelpModel::new(scene.screen.clone()));
+            scene.help = Some(HelpModel::new(scene.screen.clone(), parameters));
         }
     }
 
