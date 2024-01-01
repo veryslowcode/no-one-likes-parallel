@@ -1,47 +1,33 @@
 /*******************************************************************************/
 /********************************************************************************
-* DESCRIPTION: Defines the device-list 'view', which allows the user to see
-* a list of available devices and/or choose one.
+* DESCRIPTION: Defines the help 'view', which provides a list of commands and information about the application.
 * AUTHOR: jb
-* DATE: 12/30/23
+* DATE: 12/31/23
 ********************************************************************************/
 /*******************************************************************************/
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    text::Line,
+    text::{Line, Span},
     widgets::{Block, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
     Frame,
 };
 use std::rc::Rc;
 
 use crate::common::*;
-use crate::serial::get_available_devices;
-
 /******************************************************************************/
 /*******************************************************************************
 * Public Interface
 *******************************************************************************/
 /******************************************************************************/
 #[derive(Debug, PartialEq)]
-pub struct DeviceListModel {
+pub struct HelpModel {
     state: State,
     bounds: Rect,
     offset: usize,
-    selected: usize,
-    devices: Vec<String>,
+    caller: Screen,
     scroll: ScrollbarState,
-}
-
-/******************************************************************************/
-/*******************************************************************************
-* Internal Interface
-*******************************************************************************/
-/******************************************************************************/
-#[derive(Debug, PartialEq)]
-enum SelectElement {
-    Previous,
-    Next,
+    // TODO implement caller state
 }
 
 /******************************************************************************/
@@ -57,20 +43,27 @@ const MARGIN_TOP: usize = 2;
 * Implementation
 *******************************************************************************/
 /******************************************************************************/
-impl Default for DeviceListModel {
-    fn default() -> DeviceListModel {
-        DeviceListModel {
+impl Default for HelpModel {
+    fn default() -> HelpModel {
+        HelpModel {
             offset: 0,
-            selected: 0,
-            devices: Vec::new(),
+            caller: Screen::Menu,
             state: State::Running,
             bounds: Rect::default(),
-            scroll: ScrollbarState::default().content_length(19),
+            scroll: ScrollbarState::default().content_length(CONTENT_LENGTH),
         }
     }
 }
 
-impl Nolp for DeviceListModel {
+impl HelpModel {
+    pub fn new(caller: Screen) -> HelpModel {
+        let mut model = HelpModel::default();
+        model.caller = caller;
+        return model;
+    }
+}
+
+impl Nolp for HelpModel {
     fn get_state(&self) -> State {
         return self.state.clone();
     }
@@ -80,18 +73,19 @@ impl Nolp for DeviceListModel {
     }
 }
 
-impl Tea for DeviceListModel {
+impl Tea for HelpModel {
     fn update(&mut self, msg: Message) -> State {
         match msg {
             Message::PreviousElement => {
-                select_element(self, SelectElement::Previous);
+                self.offset -= 1;
+                self.scroll = self.scroll.position(self.offset);
             }
             Message::NextElement => {
-                select_element(self, SelectElement::Next);
+                self.offset += 1;
+                self.scroll = self.scroll.position(self.offset);
             }
             Message::Enter => {
                 switch_screen(self);
-                // TODO switch to menu with selected name
             }
             _ => {}
         }
@@ -103,10 +97,7 @@ impl Tea for DeviceListModel {
         self.bounds = bounds;
 
         render_title(frame, layout[0]);
-
-        self.devices = get_available_devices().expect("Failed to determine available devices");
-
-        render_device_list(frame, layout[2], self);
+        render_help(frame, layout[2], self);
         render_scrollbar(frame, layout[2], self);
     }
 }
@@ -116,6 +107,28 @@ impl Tea for DeviceListModel {
 * Utility Functions
 *******************************************************************************/
 /******************************************************************************/
+fn get_keymap<'a>(width: usize) -> Vec<Line<'a>> {
+    let mut keymap: Vec<Line> = Vec::new();
+    let style = Style::default().fg(crate::PLACEHOLDER_COLOR);
+
+    keymap.push(Line::from(vec![
+        Span::from(format!("ctrl+{}", MENU_CHAR)),
+        Span::styled(format!("{: >w$}", "Displays menu", w = width), style),
+    ]));
+
+    keymap.push(Line::from(vec![
+        Span::from(format!("ctrl+{}", DEVICE_LIST_CHAR)),
+        Span::styled(format!("{: >w$}", "Displays device list", w = width), style),
+    ]));
+
+    keymap.push(Line::from(vec![
+        Span::from(format!("ctrl+{}", QUIT_CHAR)),
+        Span::styled(format!("{: >w$}", "Quits application", w = width), style),
+    ]));
+
+    return keymap;
+}
+
 fn get_layout(fsize: Rect) -> (Rect, Rc<[Rect]>) {
     let bounds = get_center_bounds(50, 50, fsize);
     let layout = Layout::default()
@@ -129,62 +142,21 @@ fn get_layout(fsize: Rect) -> (Rect, Rc<[Rect]>) {
     return (bounds, layout);
 }
 
-fn select_element(model: &mut DeviceListModel, direction: SelectElement) {
-    if model.devices.len() == 0 {
-        return;
-    }
-
-    let (comparison, nominal, alternate) = match direction {
-        SelectElement::Previous => (
-            model.selected == 0,
-            model.selected as i32 - 1,
-            model.devices.len() - 1,
-        ),
-        SelectElement::Next => (
-            model.selected == model.devices.len() - 1,
-            model.selected as i32 + 1,
-            0,
-        ),
-    };
-
-    if comparison {
-        model.selected = alternate;
-    } else {
-        model.selected = nominal as usize;
-    }
-
-    if model.bounds.height <= CONTENT_LENGTH as u16 {
-        model.offset = model.selected;
-        model.scroll = model.scroll.position(model.offset);
-    }
-}
-
-fn render_device_list(frame: &mut Frame, area: Rect, model: &mut DeviceListModel) {
+fn render_help(frame: &mut Frame, area: Rect, model: &mut HelpModel) {
     let mut text: Vec<Line> = Vec::new();
+    let width = 24;
 
-    if model.devices.len() > 0 {
-        let style = Style::default().fg(crate::SELECTED_COLOR);
-        for (index, name) in model.devices.iter().enumerate() {
-            if index == model.selected {
-                text.push(Line::styled(name.to_string(), style));
-            } else {
-                text.push(Line::from(name.to_string()));
-            }
-        }
-    } else {
-        let style = Style::default().fg(crate::INVALID_COLOR);
-        text.push(Line::styled("No devices available", style));
-    }
+    text.append(&mut get_keymap(width));
 
-    let list = Paragraph::new(text)
+    let help = Paragraph::new(text)
         .scroll((model.offset as u16, 0))
         .alignment(Alignment::Center);
 
-    frame.render_widget(list, area);
+    frame.render_widget(help, area);
 }
 
-fn render_scrollbar(frame: &mut Frame, area: Rect, model: &mut DeviceListModel) {
-    if usize::from(area.height) <= CONTENT_LENGTH && model.devices.len() > 0 {
+fn render_scrollbar(frame: &mut Frame, area: Rect, model: &mut HelpModel) {
+    if usize::from(area.height) <= CONTENT_LENGTH {
         let scrollbar = Scrollbar::default()
             .orientation(ScrollbarOrientation::VerticalRight)
             .track_symbol(None)
@@ -196,20 +168,12 @@ fn render_scrollbar(frame: &mut Frame, area: Rect, model: &mut DeviceListModel) 
 
 fn render_title(frame: &mut Frame, area: Rect) {
     let title = Block::default()
-        .title("Device List")
+        .title("Help")
         .title_alignment(Alignment::Center)
         .title_style(Style::default().add_modifier(Modifier::BOLD));
     frame.render_widget(title, area);
 }
 
-fn switch_screen(model: &mut DeviceListModel) {
-    if model.devices.len() > 0 {
-        let port_name = model.devices[model.selected].clone();
-        model.state = State::Switching(
-            Screen::Menu,
-            Some(PortParameters::default().name(port_name)),
-        );
-    } else {
-        model.state = State::Switching(Screen::Menu, None);
-    }
+fn switch_screen(model: &mut HelpModel) {
+    model.state = State::Switching(model.caller.to_owned(), None);
 }

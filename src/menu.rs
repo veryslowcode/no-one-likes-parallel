@@ -158,7 +158,7 @@ impl Default for MenuModel {
 
         MenuModel {
             scroll: ScrollbarState::default().content_length(CONTENT_LENGTH),
-            bounds: Rect::new(0, 0, 0, 0),
+            bounds: Rect::default(),
             state: State::Running,
             min_height: 0,
             min_width: 0,
@@ -211,7 +211,7 @@ impl Tea for MenuModel {
     }
 
     fn view(&mut self, frame: &mut Frame) {
-        let (bounds, layout) = get_menu_layout(frame.size());
+        let (bounds, layout) = get_layout(frame.size());
         self.bounds = layout[2];
 
         update_split(self, bounds);
@@ -342,7 +342,7 @@ fn get_input_text(input: &MenuInput) -> (String, Style) {
     }
 }
 
-fn get_menu_layout(fsize: Rect) -> (Rect, Rc<[Rect]>) {
+fn get_layout(fsize: Rect) -> (Rect, Rc<[Rect]>) {
     let bounds = get_center_bounds(50, 50, fsize);
     let layout = Layout::default()
         .direction(Direction::Vertical)

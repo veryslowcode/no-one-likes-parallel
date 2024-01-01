@@ -31,11 +31,13 @@ use tokio;
 
 mod common;
 mod device_list;
+mod help;
 mod menu;
 mod serial;
 
 use crate::common::*;
 use crate::device_list::DeviceListModel;
+use crate::help::HelpModel;
 use crate::menu::MenuModel;
 
 type NolpBackend = CrosstermBackend<Stdout>;
@@ -49,21 +51,10 @@ type NolpTerminal = Terminal<NolpBackend>;
 #[derive(Debug, PartialEq)]
 struct Scene {
     screen: Screen,
+    help: Option<HelpModel>,
     menu: Option<MenuModel>,
     device_list: Option<DeviceListModel>,
 }
-
-/******************************************************************************/
-/*******************************************************************************
-* Local Constants
-*******************************************************************************/
-/******************************************************************************/
-const HELP_CHAR: char = 'h';
-const QUIT_CHAR: char = 'q';
-const MENU_CHAR: char = 'n';
-const DEVICE_LIST_CHAR: char = 'l';
-const NEXT_ELEMENT_CHAR: char = ']';
-const PREVIOUS_ELEMENT_CHAR: char = '[';
 
 /******************************************************************************/
 /*******************************************************************************
@@ -73,6 +64,7 @@ const PREVIOUS_ELEMENT_CHAR: char = '[';
 impl Default for Scene {
     fn default() -> Scene {
         Scene {
+            help: None,
             device_list: None,
             screen: Screen::default(),
             menu: Some(MenuModel::default()),
@@ -171,7 +163,7 @@ fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
                 return Some(Message::Switching(Screen::Menu, None));
             }
             KeyCode::Char(HELP_CHAR) => {
-                // return Some(Message::Switching(Screen::Help, None));
+                return Some(Message::Switching(Screen::Help, None));
             }
             _ => {}
         }
@@ -238,6 +230,13 @@ fn render_and_update(
                 *state = model.update(msg.unwrap());
             }
         }
+        Screen::Help => {
+            let model = scene.help.as_mut().unwrap();
+            render_screen(terminal, model);
+            if msg.is_some() {
+                *state = model.update(msg.unwrap());
+            }
+        }
     };
 
     if let State::Switching(s, p) = state {
@@ -276,12 +275,18 @@ fn switch_screen(scene: &mut Scene, new: Screen, parameters: Option<PortParamete
                     model = MenuModel::default();
                 }
             }
+            scene.help = None;
             scene.device_list = None;
             scene.menu = Some(model);
         }
         Screen::DeviceList => {
             scene.menu = None;
             scene.device_list = Some(DeviceListModel::default());
+        }
+        Screen::Help => {
+            scene.menu = None;
+            scene.device_list = None;
+            scene.help = Some(HelpModel::new(scene.screen.clone()));
         }
     }
 
