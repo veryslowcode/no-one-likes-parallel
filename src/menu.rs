@@ -73,7 +73,7 @@ enum UpdateElement {
 * Local Constants
 *******************************************************************************/
 /******************************************************************************/
-const CONTENT_LENGTH: usize = 19;
+const CONTENT_LENGTH: usize = 20;
 const INPUT_WIDTH: usize = 18;
 const MARGIN_TOP: usize = 2;
 const GAP_WIDTH: usize = 10;
@@ -431,10 +431,10 @@ fn update_split(model: &mut MenuModel, area: Rect) {
     // Input count / 2 to account for split
     // Multiplied by 3 to account for input line count
     // Add 1 to account for buttons
-    model.min_height = (model.inputs.len() / 2) * 3 + MARGIN_TOP + 1;
+    model.min_height = (model.inputs.len() / 2) * 3;
 
     if usize::from(area.width) < model.min_width {
-        model.min_height = model.inputs.len() * 3 + MARGIN_TOP + 2;
+        model.min_height = model.inputs.len() * 3 + 1;
         model.split = false;
     }
 }
