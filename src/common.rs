@@ -92,7 +92,7 @@ pub const PLACEHOLDER_COLOR: Color = Color::DarkGray;
 // Keyboard input
 pub const HELP_CHAR: char = 'h';
 pub const QUIT_CHAR: char = 'q';
-pub const MENU_CHAR: char = 'm';
+pub const MENU_CHAR: char = 'n';
 pub const DEVICE_LIST_CHAR: char = 'l';
 pub const NEXT_ELEMENT_CHAR: char = ']';
 pub const PREVIOUS_ELEMENT_CHAR: char = '[';

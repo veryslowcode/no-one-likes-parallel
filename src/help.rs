@@ -1,6 +1,7 @@
 /*******************************************************************************/
 /********************************************************************************
-* DESCRIPTION: Defines the help 'view', which provides a list of commands and information about the application.
+* DESCRIPTION: Defines the help 'view', which provides a list of commands and
+* information about the application.
 * AUTHOR: jb
 * DATE: 12/31/23
 ********************************************************************************/

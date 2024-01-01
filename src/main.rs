@@ -34,11 +34,13 @@ mod device_list;
 mod help;
 mod menu;
 mod serial;
+mod terminal;
 
 use crate::common::*;
 use crate::device_list::DeviceListModel;
 use crate::help::HelpModel;
 use crate::menu::MenuModel;
+use crate::terminal::TerminalModel;
 
 type NolpBackend = CrosstermBackend<Stdout>;
 type NolpTerminal = Terminal<NolpBackend>;
@@ -243,6 +245,7 @@ fn render_and_update(
         let screen = s.clone();
         let parameters = p.clone();
         switch_screen(scene, screen, parameters);
+        *state = State::Running;
     }
 }
 
@@ -281,6 +284,7 @@ fn switch_screen(scene: &mut Scene, new: Screen, parameters: Option<PortParamete
         }
         Screen::DeviceList => {
             scene.menu = None;
+            scene.help = None;
             scene.device_list = Some(DeviceListModel::default());
         }
         Screen::Help => {
