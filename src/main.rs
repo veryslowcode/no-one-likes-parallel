@@ -8,10 +8,11 @@
 use anyhow::{anyhow, Result};
 use crossterm::{
     cursor,
-    event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
+    event::{self, Event, EventStream, KeyCode, KeyEvent, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use futures::{FutureExt, StreamExt};
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -28,9 +29,10 @@ use std::{
     time::Duration,
 };
 use tokio::{
-    self,
+    self, select,
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
     task::JoinHandle,
+    time::interval,
 };
 
 mod common;
@@ -64,8 +66,10 @@ struct Scene {
 }
 
 #[derive(Debug)]
+#[allow(unused)]
 struct EventListener {
     tick_rate: Duration,
+    frame_rate: Duration,
     task: Option<JoinHandle<()>>,
     sender: UnboundedSender<NolpEvent>,
     receiver: UnboundedReceiver<NolpEvent>,
@@ -95,23 +99,63 @@ impl Default for Scene {
 impl EventListener {
     fn new() -> Self {
         let tick_rate = Duration::from_millis(250);
+        let frame_rate = Duration::from_secs_f64(1.0 / 60.0);
         let (tx, rx) = unbounded_channel();
         let tx_handle = tx.clone();
-
-        tokio::spawn(async move {
-            loop {
-                if let Some(k) = get_event(tick_rate).expect("Failed to poll events") {
-                    tx.send(NolpEvent::User(k)).unwrap();
-                }
-            }
-        });
-
+        EventListener::start(tx, tick_rate, frame_rate);
         EventListener {
             sender: tx_handle,
             receiver: rx,
             task: None,
+            frame_rate,
             tick_rate,
         }
+    }
+
+    fn handle_error(tx: &UnboundedSender<NolpEvent>) {
+        tx.send(NolpEvent::Error)
+            .expect("Failed to notify tokio error");
+    }
+
+    fn handle_event(tx: &UnboundedSender<NolpEvent>, event: Event) {
+        if let Event::Key(k) = event {
+            if k.kind == KeyEventKind::Press {
+                tx.send(NolpEvent::User(k))
+                    .expect("Failed to send user event");
+            }
+        }
+    }
+
+    fn start(tx: UnboundedSender<NolpEvent>, tick_rate: Duration, frame_rate: Duration) {
+        tokio::spawn(async move {
+            let mut reader = EventStream::new();
+            let mut ticker = interval(tick_rate);
+            let mut renderer = interval(frame_rate);
+            loop {
+                let tick_delay = ticker.tick();
+                let render_delay = renderer.tick();
+                let next = reader.next().fuse();
+                select! {
+                    event = next => {
+			match event {
+			    Some(Ok(e)) => {
+				EventListener::handle_event(&tx, e)
+			    },
+			    Some(Err(_)) => {
+				EventListener::handle_error(&tx);
+			    },
+			    None => {},
+			}
+                    },
+                    _ = tick_delay => {
+			tx.send(NolpEvent::Tick).expect("Failed to send tick event");
+                    }
+                    _ = render_delay => {
+			tx.send(NolpEvent::Render).expect("Failed to send render event");
+                    }
+                }
+            }
+        });
     }
 
     async fn listen(&mut self) -> Result<NolpEvent> {
@@ -139,10 +183,11 @@ async fn main() {
                 Some(m) => match m {
                     Message::Quit => state = State::Stopping,
                     Message::Switching(s, p) => switch_screen(&mut scene, s, p),
-                    ms => render_and_update(&mut terminal, &mut scene, &mut state, Some(ms)),
+                    ms => update(&mut scene, &mut state, ms)
                 },
-                None => render_and_update(&mut terminal, &mut scene, &mut state, None),
+                None => {}
             },
+	    NolpEvent::Render => render(&mut terminal, &mut scene),
             _ => {}
         }
     }
@@ -155,24 +200,6 @@ async fn main() {
 * Utility Functions
 *******************************************************************************/
 /******************************************************************************/
-fn get_event(poll_rate: Duration) -> Result<Option<KeyEvent>> {
-    if event::poll(poll_rate)? {
-        let event_read = event::read()?;
-        return match event_read {
-            Event::Key(k) => {
-                if k.kind == KeyEventKind::Press {
-                    Ok(Some(k))
-                } else {
-                    Ok(None)
-                }
-            }
-            _ => Ok(None),
-        };
-    }
-
-    Ok(None)
-}
-
 fn get_frame_border<'a>() -> Block<'a> {
     Block::default()
         .title(" NOLP ")
@@ -264,49 +291,25 @@ fn render_screen(terminal: &mut NolpTerminal, model: &mut (impl Tea + Nolp)) {
         .expect("Failed to render frame");
 }
 
-fn render_and_update(
-    terminal: &mut NolpTerminal,
-    scene: &mut Scene,
-    state: &mut State,
-    msg: Option<Message>,
-) {
+fn render(terminal: &mut NolpTerminal, scene: &mut Scene) {
     match scene.screen {
         Screen::Menu => {
             let model = scene.menu.as_mut().unwrap();
             render_screen(terminal, model);
-            if msg.is_some() {
-                *state = model.update(msg.unwrap());
-            }
         }
         Screen::DeviceList => {
             let model = scene.device_list.as_mut().unwrap();
             render_screen(terminal, model);
-            if msg.is_some() {
-                *state = model.update(msg.unwrap());
-            }
         }
         Screen::Help => {
             let model = scene.help.as_mut().unwrap();
             render_screen(terminal, model);
-            if msg.is_some() {
-                *state = model.update(msg.unwrap());
-            }
         }
         Screen::Terminal => {
             let model = scene.terminal.as_mut().unwrap();
             render_screen(terminal, model);
-            if msg.is_some() {
-                *state = model.update(msg.unwrap());
-            }
         }
     };
-
-    if let State::Switching(s, p) = state {
-        let screen = s.clone();
-        let parameters = p.clone();
-        switch_screen(scene, screen, parameters);
-        *state = State::Running;
-    }
 }
 
 fn set_panic_hook() {
@@ -364,4 +367,32 @@ fn switch_screen(scene: &mut Scene, new: Screen, parameters: Option<PortParamete
     }
 
     scene.screen = new;
+}
+
+fn update(scene: &mut Scene, state: &mut State, msg: Message) {
+    match scene.screen {
+        Screen::Menu => {
+            let model = scene.menu.as_mut().unwrap();
+            *state = model.update(msg);
+        }
+        Screen::DeviceList => {
+            let model = scene.device_list.as_mut().unwrap();
+            *state = model.update(msg);
+        }
+        Screen::Help => {
+            let model = scene.help.as_mut().unwrap();
+            *state = model.update(msg);
+        }
+        Screen::Terminal => {
+            let model = scene.terminal.as_mut().unwrap();
+            *state = model.update(msg);
+        }
+    };
+
+    if let State::Switching(s, p) = state {
+        let screen = s.clone();
+        let parameters = p.clone();
+        switch_screen(scene, screen, parameters);
+        *state = State::Running;
+    }
 }

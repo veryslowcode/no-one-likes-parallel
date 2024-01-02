@@ -49,6 +49,7 @@ pub enum Message {
 #[derive(Debug, PartialEq)]
 pub enum NolpEvent {
     Tick,
+    Error,
     Render,
     User(KeyEvent),
 }
