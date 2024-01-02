@@ -254,6 +254,8 @@ fn get_message(key: KeyEvent) -> Option<Message> {
     return match key.code {
         KeyCode::Char(PREVIOUS_ELEMENT_CHAR) => Some(Message::PreviousElement),
         KeyCode::Char(NEXT_ELEMENT_CHAR) => Some(Message::NextElement),
+	KeyCode::Char(RESUME_CHAR) => Some(Message::Resume),
+	KeyCode::Char(PAUSE_CHAR) => Some(Message::Pause),
         KeyCode::Char(input) => Some(Message::Input(input)),
         KeyCode::Backspace => Some(Message::Backspace),
         KeyCode::Enter => Some(Message::Enter),

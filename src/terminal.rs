@@ -29,7 +29,7 @@ pub struct TerminalModel {
     bounds: Rect,
     input: String,
     offset: usize,
-    buffer: Vec<i32>,
+    buffer: Vec<u8>,
     scroll: ScrollbarState,
     parameters: PortParameters,
 }
@@ -62,7 +62,6 @@ impl Default for TerminalModel {
 
 impl TerminalModel {
     fn new(parameters: PortParameters) -> TerminalModel {
-        // validate parameters
         let mut model = TerminalModel::default();
         model.parameters = parameters;
         return model;
@@ -90,8 +89,21 @@ impl Tea for TerminalModel {
                     self.input.pop();
                 }
             }
+	    Message::Pause => {
+		if self.state != State::Pausing {
+		    // Clear the buffer
+		    self.buffer = Vec::new();
+		    self.state = State::Pausing;
+		}
+	    }
+	    Message::Resume => {
+		if self.state != State::Running {
+		    self.state = State::Running;
+		}
+	    }
             Message::Enter => {
                 // TODO send to port
+		update_buffer_input(self);
                 self.input = String::from("");
             }
             _ => {}
@@ -133,7 +145,7 @@ fn render_input(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
 fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
     let block = Block::default().padding(Padding::uniform(PADDING));
     //    let mode = model.parameters.mode.clone().unwrap();
-    let mode = Mode::Octal;
+    let mode = Mode::Octal; // DEBUG CODE remove!
     let encoded: String = model
         .buffer
         .iter()
@@ -149,3 +161,10 @@ fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
         .wrap(Wrap { trim: false });
     frame.render_widget(terminal, area);
 }
+
+fn update_buffer_input(model: &mut TerminalModel) {
+    let mut input_bytes = model.input.clone().into_bytes();
+    model.buffer.append(&mut input_bytes);
+}
+
+fn update_buffer_output() {}
