@@ -5,10 +5,10 @@
 * DATE: 12/30/23
 ********************************************************************************/
 /*******************************************************************************/
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use crossterm::{
     cursor,
-    event::{self, Event, KeyCode, KeyEventKind},
+    event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -27,7 +27,11 @@ use std::{
     rc::Rc,
     time::Duration,
 };
-use tokio;
+use tokio::{
+    self,
+    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    task::JoinHandle,
+};
 
 mod common;
 mod device_list;
@@ -59,6 +63,14 @@ struct Scene {
     device_list: Option<DeviceListModel>,
 }
 
+#[derive(Debug)]
+struct EventListener {
+    tick_rate: Duration,
+    task: Option<JoinHandle<()>>,
+    sender: UnboundedSender<NolpEvent>,
+    receiver: UnboundedReceiver<NolpEvent>,
+}
+
 /******************************************************************************/
 /*******************************************************************************
 * Implementation
@@ -80,24 +92,58 @@ impl Default for Scene {
     }
 }
 
+impl EventListener {
+    fn new() -> Self {
+        let tick_rate = Duration::from_millis(250);
+        let (tx, rx) = unbounded_channel();
+        let tx_handle = tx.clone();
+
+        tokio::spawn(async move {
+            loop {
+                if let Some(k) = get_event(tick_rate).expect("Failed to poll events") {
+                    tx.send(NolpEvent::User(k)).unwrap();
+                }
+            }
+        });
+
+        EventListener {
+            sender: tx_handle,
+            receiver: rx,
+            task: None,
+            tick_rate,
+        }
+    }
+
+    async fn listen(&mut self) -> Result<NolpEvent> {
+        self.receiver
+            .recv()
+            .await
+            .ok_or(anyhow!("Failed to receive event"))
+    }
+}
+
 #[tokio::main]
 async fn main() {
     set_panic_hook();
 
     let mut state = State::default();
     let mut scene = Scene::default();
+    let mut listener = EventListener::new();
     let mut terminal = init_terminal().expect("Failed to initialize terminal");
 
     while state != State::Stopping {
-        let msg = handle_event().expect("Failed to poll events");
-
-        match msg {
-            Some(m) => match m {
-                Message::Quit => state = State::Stopping,
-                Message::Switching(s, p) => switch_screen(&mut scene, s, p),
-                ms => render_and_update(&mut terminal, &mut scene, &mut state, Some(ms)),
+        //        let msg = handle_event().expect("Failed to poll events");
+        let event = listener.listen().await.unwrap();
+        match event {
+            NolpEvent::User(k) => match get_message(k) {
+                Some(m) => match m {
+                    Message::Quit => state = State::Stopping,
+                    Message::Switching(s, p) => switch_screen(&mut scene, s, p),
+                    ms => render_and_update(&mut terminal, &mut scene, &mut state, Some(ms)),
+                },
+                None => render_and_update(&mut terminal, &mut scene, &mut state, None),
             },
-            None => render_and_update(&mut terminal, &mut scene, &mut state, None),
+            _ => {}
         }
     }
 
@@ -109,6 +155,24 @@ async fn main() {
 * Utility Functions
 *******************************************************************************/
 /******************************************************************************/
+fn get_event(poll_rate: Duration) -> Result<Option<KeyEvent>> {
+    if event::poll(poll_rate)? {
+        let event_read = event::read()?;
+        return match event_read {
+            Event::Key(k) => {
+                if k.kind == KeyEventKind::Press {
+                    Ok(Some(k))
+                } else {
+                    Ok(None)
+                }
+            }
+            _ => Ok(None),
+        };
+    }
+
+    Ok(None)
+}
+
 fn get_frame_border<'a>() -> Block<'a> {
     Block::default()
         .title(" NOLP ")
@@ -124,7 +188,7 @@ fn get_layout(frame: &mut Frame) -> Rc<[Rect]> {
         .split(frame.size())
 }
 
-fn get_message<'a>(model: &mut impl Nolp) -> Paragraph<'a> {
+fn get_info<'a>(model: &mut impl Nolp) -> Paragraph<'a> {
     let mut style = Style::default().fg(crate::PLACEHOLDER_COLOR);
     let mut message = String::from(format!(
         " Help (ctrl+{}) | Quit (ctrl+{}) ",
@@ -141,24 +205,7 @@ fn get_message<'a>(model: &mut impl Nolp) -> Paragraph<'a> {
     return help;
 }
 
-fn handle_event() -> Result<Option<Message>> {
-    let poll_rate = Duration::from_millis(250);
-    if event::poll(poll_rate)? {
-        let event_read = event::read()?;
-        return match event_read {
-            Event::Key(k) => Ok(handle_key_event(k)),
-            _ => Ok(None),
-        };
-    }
-
-    Ok(None)
-}
-
-fn handle_key_event(key: event::KeyEvent) -> Option<Message> {
-    if key.kind != KeyEventKind::Press {
-        return None;
-    }
-
+fn get_message(key: KeyEvent) -> Option<Message> {
     if key.modifiers == event::KeyModifiers::CONTROL {
         match key.code {
             KeyCode::Char(QUIT_CHAR) => {
@@ -208,11 +255,11 @@ fn render_screen(terminal: &mut NolpTerminal, model: &mut (impl Tea + Nolp)) {
         .draw(|frame| {
             let layout = get_layout(frame);
             let frame_border = get_frame_border();
-            let message = get_message(model);
+            let info = get_info(model);
 
             frame.render_widget(frame_border, frame.size());
             model.view(frame);
-            frame.render_widget(message, layout[1]);
+            frame.render_widget(info, layout[1]);
         })
         .expect("Failed to render frame");
 }

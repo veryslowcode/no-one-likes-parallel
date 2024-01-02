@@ -5,10 +5,11 @@
 * DATE: 12/30/23
 ********************************************************************************/
 /*******************************************************************************/
-use ratatui::Frame;
+use crossterm::event::KeyEvent;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::Color,
+    Frame,
 };
 
 /******************************************************************************/
@@ -43,6 +44,13 @@ pub enum Message {
     NextElement,
     PreviousElement,
     Switching(Screen, Option<PortParameters>),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum NolpEvent {
+    Tick,
+    Render,
+    User(KeyEvent),
 }
 
 #[derive(Clone, Debug, PartialEq)]
