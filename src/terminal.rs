@@ -30,6 +30,7 @@ pub struct TerminalModel {
     bounds: Rect,
     input: String,
     offset: usize,
+    text_width: usize,
     buffer: Vec<DataByte>,
     scroll: ScrollbarState,
     parameters: PortParameters,
@@ -68,9 +69,10 @@ impl Default for TerminalModel {
     fn default() -> TerminalModel {
         TerminalModel {
             offset: 0,
+            text_width: 0,
             buffer: vec![
                 DataByte {
-                    value: 0xA5,
+                    value: 0x00,
                     direction: DataDirection::Output
                 };
                 1024
@@ -106,11 +108,23 @@ impl Tea for TerminalModel {
     fn update(&mut self, msg: Message) -> State {
         match msg {
             Message::Input(input) => {
-                self.input.push(input);
+                if self.state != State::Pausing {
+                    self.input.push(input);
+                }
             }
             Message::Backspace => {
-                if self.input.len() > 0 {
+                if self.input.len() > 0 && self.state != State::Pausing {
                     self.input.pop();
+                }
+            }
+            Message::PreviousElement => {}
+            Message::NextElement => {
+                let current_len =
+                    (self.buffer.len() * self.text_width) / usize::from(self.bounds.width);
+                println!("{}", self.bounds.width);
+                if current_len > usize::from(self.bounds.height) && self.offset + 1 < current_len {
+                    self.offset += 1;
+                    self.scroll = self.scroll.position(self.offset);
                 }
             }
             Message::Pause => {
@@ -138,11 +152,13 @@ impl Tea for TerminalModel {
     fn view(&mut self, frame: &mut Frame) {
         self.bounds = frame.size();
         let layout = get_layout(self.bounds);
+        self.scroll = self.scroll.content_length(usize::from(layout[0].height));
 
         if self.state == State::Pausing {
             render_pause(frame, self.bounds);
         } else {
             render_terminal(frame, layout[0], self);
+            render_scrollbar(frame, layout[0], self);
             render_input(frame, layout[1], self);
         }
     }
@@ -161,14 +177,14 @@ fn get_encoding(model: &mut TerminalModel, mode: Mode) -> Vec<Span> {
         .iter()
         .map(|data_byte| match mode {
             Mode::Hex => {
-                let text = format!("{:#X} ", data_byte.value);
+                let text = format!("{:#02X} ", data_byte.value);
                 match data_byte.direction {
                     DataDirection::Input => Span::styled(text, style),
                     DataDirection::Output => Span::from(text),
                 }
             }
             Mode::Octal => {
-                let text = format!("{:#o} ", data_byte.value);
+                let text = format!("{:#05o} ", data_byte.value);
                 match data_byte.direction {
                     DataDirection::Input => Span::styled(text, style),
                     DataDirection::Output => Span::from(text),
@@ -215,9 +231,22 @@ fn render_pause(frame: &mut Frame, area: Rect) {
     frame.render_widget(pause, bounds);
 }
 
+fn render_scrollbar(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
+    let content_len = (model.buffer.len() * model.text_width) / usize::from(model.bounds.width);
+    if usize::from(area.height) <= content_len {
+        let scrollbar = Scrollbar::default()
+            .orientation(ScrollbarOrientation::VerticalRight)
+            .track_symbol(None)
+            .thumb_symbol("");
+
+        frame.render_stateful_widget(scrollbar, area, &mut model.scroll);
+    }
+}
+
 fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
     let block = Block::default().padding(Padding::uniform(PADDING));
-    let line = Line::from(get_encoding(model, Mode::Octal));
+    model.text_width = 6; // Remove and set on new
+    let line = Line::from(get_encoding(model, Mode::Octal)); // Replace mode with actual mode
     let terminal = Paragraph::new(line).block(block).wrap(Wrap { trim: false });
     frame.render_widget(terminal, area);
 }
