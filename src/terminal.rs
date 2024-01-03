@@ -8,7 +8,7 @@
 /*******************************************************************************/
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::Style,
+    style::{Modifier, Style},
     text::{Line, Span, Text},
     widgets::{
         Block, BorderType, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
@@ -139,8 +139,12 @@ impl Tea for TerminalModel {
         self.bounds = frame.size();
         let layout = get_layout(self.bounds);
 
-        render_terminal(frame, layout[0], self);
-        render_input(frame, layout[1], self);
+        if self.state == State::Pausing {
+            render_pause(frame, self.bounds);
+        } else {
+            render_terminal(frame, layout[0], self);
+            render_input(frame, layout[1], self);
+        }
     }
 }
 
@@ -164,15 +168,16 @@ fn get_encoding(model: &mut TerminalModel, mode: Mode) -> Vec<Span> {
                 }
             }
             Mode::Octal => {
-		let text = format!("{:#o} ", data_byte.value);
-		match data_byte.direction {
-		    DataDirection::Input => Span::styled(text, style),
-		    DataDirection::Output => Span::from(text)
-		}
-	    },
+                let text = format!("{:#o} ", data_byte.value);
+                match data_byte.direction {
+                    DataDirection::Input => Span::styled(text, style),
+                    DataDirection::Output => Span::from(text),
+                }
+            }
             // TODO implement ascii
             _ => Span::from(data_byte.value.to_string() + " "),
-        }).collect()
+        })
+        .collect()
 }
 
 fn get_layout(fsize: Rect) -> Rc<[Rect]> {
@@ -198,6 +203,16 @@ fn render_input(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
         .border_type(BorderType::Rounded);
     let input = Paragraph::new(text).block(block);
     frame.render_widget(input, area);
+}
+
+fn render_pause(frame: &mut Frame, area: Rect) {
+    let bounds = get_center_bounds(50, 50, area);
+    let style = Style::default()
+        .fg(crate::PLACEHOLDER_COLOR)
+        .add_modifier(Modifier::BOLD);
+    let text = Text::styled("PAUSED", style);
+    let pause = Paragraph::new(text).alignment(Alignment::Center);
+    frame.render_widget(pause, bounds);
 }
 
 fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
