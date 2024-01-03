@@ -9,6 +9,7 @@
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::Style,
+    text::{Line, Span, Text},
     widgets::{
         Block, BorderType, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
         ScrollbarState, Wrap,
@@ -29,9 +30,26 @@ pub struct TerminalModel {
     bounds: Rect,
     input: String,
     offset: usize,
-    buffer: Vec<u8>,
+    buffer: Vec<DataByte>,
     scroll: ScrollbarState,
     parameters: PortParameters,
+}
+
+/******************************************************************************/
+/*******************************************************************************
+* Internal Interface
+*******************************************************************************/
+/******************************************************************************/
+#[derive(Clone, Debug, PartialEq)]
+enum DataDirection {
+    Input,
+    Output,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct DataByte {
+    value: u8,
+    direction: DataDirection,
 }
 
 /******************************************************************************/
@@ -50,7 +68,13 @@ impl Default for TerminalModel {
     fn default() -> TerminalModel {
         TerminalModel {
             offset: 0,
-            buffer: vec![0xA5; 1024],
+            buffer: vec![
+                DataByte {
+                    value: 0xA5,
+                    direction: DataDirection::Output
+                };
+                1024
+            ],
             state: State::Running,
             input: String::from(""),
             bounds: Rect::default(),
@@ -89,21 +113,21 @@ impl Tea for TerminalModel {
                     self.input.pop();
                 }
             }
-	    Message::Pause => {
-		if self.state != State::Pausing {
-		    // Clear the buffer
-		    self.buffer = Vec::new();
-		    self.state = State::Pausing;
-		}
-	    }
-	    Message::Resume => {
-		if self.state != State::Running {
-		    self.state = State::Running;
-		}
-	    }
+            Message::Pause => {
+                if self.state != State::Pausing {
+                    // Clear the buffer
+                    self.buffer = Vec::new();
+                    self.state = State::Pausing;
+                }
+            }
+            Message::Resume => {
+                if self.state != State::Running {
+                    self.state = State::Running;
+                }
+            }
             Message::Enter => {
                 // TODO send to port
-		update_buffer_input(self);
+                update_buffer_input(self);
                 self.input = String::from("");
             }
             _ => {}
@@ -125,6 +149,32 @@ impl Tea for TerminalModel {
 * Utility functions
 *******************************************************************************/
 /******************************************************************************/
+fn get_encoding(model: &mut TerminalModel, mode: Mode) -> Vec<Span> {
+    let style = Style::default().fg(crate::PLACEHOLDER_COLOR);
+    //    let mode = model.parameters.mode.clone().unwrap();
+    model
+        .buffer
+        .iter()
+        .map(|data_byte| match mode {
+            Mode::Hex => {
+                let text = format!("{:#X} ", data_byte.value);
+                match data_byte.direction {
+                    DataDirection::Input => Span::styled(text, style),
+                    DataDirection::Output => Span::from(text),
+                }
+            }
+            Mode::Octal => {
+		let text = format!("{:#o} ", data_byte.value);
+		match data_byte.direction {
+		    DataDirection::Input => Span::styled(text, style),
+		    DataDirection::Output => Span::from(text)
+		}
+	    },
+            // TODO implement ascii
+            _ => Span::from(data_byte.value.to_string() + " "),
+        }).collect()
+}
+
 fn get_layout(fsize: Rect) -> Rc<[Rect]> {
     Layout::default()
         .direction(Direction::Vertical)
@@ -133,38 +183,38 @@ fn get_layout(fsize: Rect) -> Rc<[Rect]> {
 }
 
 fn render_input(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
+    let text = if model.input.len() > 0 {
+        Text::styled(
+            model.input.clone(),
+            Style::default().fg(crate::SELECTED_COLOR),
+        )
+    } else {
+        Text::styled("...", Style::default().fg(crate::PLACEHOLDER_COLOR))
+    };
     let block = Block::default()
         .title(" Input ")
         .title_alignment(Alignment::Left)
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded);
-    let input = Paragraph::new(model.input.clone()).block(block);
+    let input = Paragraph::new(text).block(block);
     frame.render_widget(input, area);
 }
 
 fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
     let block = Block::default().padding(Padding::uniform(PADDING));
-    //    let mode = model.parameters.mode.clone().unwrap();
-    let mode = Mode::Octal; // DEBUG CODE remove!
-    let encoded: String = model
-        .buffer
-        .iter()
-        .map(|value| match mode {
-            Mode::Hex => format!("{:#X} ", value),
-            Mode::Octal => format!("{:#o} ", value),
-            // TODO implement ascii
-            _ => value.to_string() + " ",
-        })
-        .collect();
-    let terminal = Paragraph::new(encoded)
-        .block(block)
-        .wrap(Wrap { trim: false });
+    let line = Line::from(get_encoding(model, Mode::Octal));
+    let terminal = Paragraph::new(line).block(block).wrap(Wrap { trim: false });
     frame.render_widget(terminal, area);
 }
 
 fn update_buffer_input(model: &mut TerminalModel) {
-    let mut input_bytes = model.input.clone().into_bytes();
-    model.buffer.append(&mut input_bytes);
+    let input_bytes = model.input.clone().into_bytes();
+    for value in input_bytes.iter() {
+        model.buffer.push(DataByte {
+            value: *value,
+            direction: DataDirection::Input,
+        });
+    }
 }
 
 fn update_buffer_output() {}
