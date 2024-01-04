@@ -13,9 +13,11 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Padding, Paragraph},
     Frame,
 };
+use serialport::SerialPortBuilder;
 use std::rc::Rc;
 
 use crate::common::*;
+use crate::serial::*;
 /******************************************************************************/
 /*******************************************************************************
 * Public Interface
@@ -27,6 +29,7 @@ pub struct TerminalModel {
     bounds: Rect,
     input: String,
     buffer: Vec<DataByte>,
+    port: Option<SerialPortBuilder>,
     pub parameters: PortParameters,
 }
 
@@ -62,6 +65,7 @@ const PADDING: u16 = 1;
 impl Default for TerminalModel {
     fn default() -> TerminalModel {
         TerminalModel {
+            port: None,
             buffer: Vec::new(),
             state: State::Running,
             input: String::from(""),
@@ -75,6 +79,14 @@ impl TerminalModel {
     pub fn new(parameters: PortParameters) -> TerminalModel {
         let mut model = TerminalModel::default();
         model.parameters = parameters;
+        model.port = match get_port(model.parameters.clone()) {
+            Ok(p) => Some(p),
+            Err(_) => {
+                model.state = State::Error(String::from(" Failed to open port "));
+                None
+            }
+        };
+        // TODO call to open port
         return model;
     }
 }
@@ -91,13 +103,6 @@ impl Nolp for TerminalModel {
 
 impl Tea for TerminalModel {
     fn update(&mut self, msg: Message) -> State {
-        // Initial check for error message,
-        // blocks default to display in
-        // center of screen.
-        if let State::Error(_) = self.get_state() {
-            return State::Running;
-        }
-
         match msg {
             Message::Input(input) => {
                 if self.state != State::Pausing && self.input.len() < 50 {
