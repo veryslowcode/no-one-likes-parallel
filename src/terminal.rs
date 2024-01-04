@@ -10,10 +10,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{
-        Block, BorderType, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
-        ScrollbarState, Wrap,
-    },
+    widgets::{Block, BorderType, Borders, Padding, Paragraph},
     Frame,
 };
 use std::rc::Rc;
@@ -102,7 +99,7 @@ impl Tea for TerminalModel {
     fn update(&mut self, msg: Message) -> State {
         match msg {
             Message::Input(input) => {
-                if self.state != State::Pausing {
+                if self.state != State::Pausing && self.input.len() < 50 {
                     self.input.push(input);
                 }
             }
@@ -233,12 +230,16 @@ fn update_buffer_input(model: &mut TerminalModel) {
     };
     let width = usize::from(model.bounds.width);
     let height = usize::from(model.bounds.height);
-    
+
     let rel_height = height - 5;
     let rel_width = width / text_width;
     let mut rel_length = (model.buffer.len() + input_bytes.len() - 1) / rel_width;
     if width % text_width != 0 {
-	rel_length += 1;
+        rel_length += 1;
+    }
+
+    if rel_length > rel_height {
+        model.buffer = Vec::new();
     }
 
     for value in input_bytes.iter() {
@@ -246,11 +247,6 @@ fn update_buffer_input(model: &mut TerminalModel) {
             value: *value,
             direction: DataDirection::Input,
         });
-    }
-
-    if rel_length > rel_height {
-	print!("overflow");
-        model.buffer = Vec::new();
     }
 }
 
