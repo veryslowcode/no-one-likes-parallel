@@ -91,6 +91,13 @@ impl Nolp for TerminalModel {
 
 impl Tea for TerminalModel {
     fn update(&mut self, msg: Message) -> State {
+        // Initial check for error message,
+        // blocks default to display in
+        // center of screen.
+        if let State::Error(_) = self.get_state() {
+            return State::Running;
+        }
+
         match msg {
             Message::Input(input) => {
                 if self.state != State::Pausing && self.input.len() < 50 {
@@ -116,8 +123,10 @@ impl Tea for TerminalModel {
             }
             Message::Enter => {
                 // TODO send to port
-                update_buffer_input(self);
-                self.input = String::from("");
+                if self.input.len() > 0 {
+                    update_buffer_input(self);
+                    self.input = String::from("");
+                }
             }
             _ => {}
         }
@@ -130,6 +139,8 @@ impl Tea for TerminalModel {
 
         if self.state == State::Pausing {
             render_pause(frame, self.bounds);
+        } else if let State::Error(_) = self.state {
+            render_error(frame, self.bounds, self);
         } else {
             render_terminal(frame, layout[0], self);
             render_input(frame, layout[1], self);
@@ -177,6 +188,20 @@ fn get_layout(fsize: Rect) -> Rc<[Rect]> {
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(3), Constraint::Length(3)])
         .split(fsize)
+}
+
+fn render_error(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
+    let bounds = get_center_bounds(50, 50, area);
+    let style = Style::default()
+        .fg(crate::INVALID_COLOR)
+        .add_modifier(Modifier::BOLD);
+    let message = format!(
+        "There was an error connecting to {}",
+        model.parameters.name.clone().unwrap()
+    );
+    let text = Text::styled(message, style);
+    let pause = Paragraph::new(text).alignment(Alignment::Center);
+    frame.render_widget(pause, bounds);
 }
 
 fn render_input(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {

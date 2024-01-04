@@ -213,10 +213,7 @@ fn get_layout(frame: &mut Frame) -> Rc<[Rect]> {
 
 fn get_info<'a>(model: &mut impl Nolp) -> Paragraph<'a> {
     let mut style = Style::default().fg(crate::PLACEHOLDER_COLOR);
-    let mut message = String::from(format!(
-        " Help (ctrl+{}) | Quit (ctrl+{}) ",
-        HELP_CHAR, QUIT_CHAR
-    ));
+    let mut message = format!(" Help (ctrl+{}) | Quit (ctrl+{}) ", HELP_CHAR, QUIT_CHAR);
 
     if let State::Error(m) = model.get_state() {
         style = style.fg(crate::INVALID_COLOR);
