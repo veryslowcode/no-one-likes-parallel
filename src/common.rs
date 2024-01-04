@@ -137,6 +137,27 @@ impl PortParameters {
     }
 }
 
+impl Parity {
+    pub fn to_string(self) -> String {
+        match self {
+            Parity::Even => String::from("Even"),
+            Parity::Odd => String::from("Odd"),
+            Parity::None => String::from("None"),
+        }
+    }
+}
+
+impl Mode {
+    pub fn to_string(self) -> String {
+        match self {
+            Mode::Ascii => String::from("Ascii"),
+            Mode::Decimal => String::from("Decimal"),
+            Mode::Hex => String::from("Hex"),
+            Mode::Octal => String::from("Decimal"),
+        }
+    }
+}
+
 /******************************************************************************/
 /*******************************************************************************
 * Utility Functions

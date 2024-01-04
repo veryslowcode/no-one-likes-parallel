@@ -171,9 +171,29 @@ impl Default for MenuModel {
 }
 
 impl MenuModel {
-    pub fn new(port: String) -> MenuModel {
+    pub fn new(parameters: PortParameters) -> MenuModel {
         let mut model = MenuModel::default();
-        model.inputs[0].value = port;
+        model.inputs[0].value = parameters.name.unwrap_or(String::from(""));
+        model.inputs[1].value = match parameters.baud_rate {
+            Some(b) => b.to_string(),
+            None => String::from(""),
+        };
+        model.inputs[2].value = match parameters.data_bits {
+            Some(d) => d.to_string(),
+            None => String::from(""),
+        };
+        model.inputs[3].value = match parameters.stop_bits {
+            Some(s) => s.to_string(),
+            None => String::from(""),
+        };
+        model.inputs[4].value = match parameters.parity {
+            Some(p) => p.to_string(),
+            None => String::from(""),
+        };
+        model.inputs[5].value = match parameters.mode {
+            Some(m) => m.to_string(),
+            None => String::from(""),
+        };
         return model;
     }
 }

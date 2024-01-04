@@ -28,7 +28,7 @@ pub struct HelpModel {
     offset: usize,
     caller: Screen,
     scroll: ScrollbarState,
-    parameters: Option<PortParameters>,
+    pub parameters: Option<PortParameters>,
 }
 
 /******************************************************************************/

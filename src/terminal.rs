@@ -27,7 +27,7 @@ pub struct TerminalModel {
     bounds: Rect,
     input: String,
     buffer: Vec<DataByte>,
-    parameters: PortParameters,
+    pub parameters: PortParameters,
 }
 
 /******************************************************************************/

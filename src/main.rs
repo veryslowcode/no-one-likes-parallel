@@ -175,7 +175,7 @@ async fn main() {
         //        let msg = handle_event().expect("Failed to poll events");
         let event = listener.listen().await.unwrap();
         match event {
-            NolpEvent::User(k) => match get_message(k) {
+            NolpEvent::User(k) => match get_message(&mut scene, k) {
                 Some(m) => match m {
                     Message::Quit => state = State::Stopping,
                     Message::Switching(s, p) => switch_screen(&mut scene, s, p),
@@ -228,7 +228,7 @@ fn get_info<'a>(model: &mut impl Nolp) -> Paragraph<'a> {
     return help;
 }
 
-fn get_message(key: KeyEvent) -> Option<Message> {
+fn get_message(scene: &mut Scene, key: KeyEvent) -> Option<Message> {
     if key.modifiers == event::KeyModifiers::CONTROL {
         match key.code {
             KeyCode::Char(QUIT_CHAR) => {
@@ -238,10 +238,12 @@ fn get_message(key: KeyEvent) -> Option<Message> {
                 return Some(Message::Switching(Screen::DeviceList, None));
             }
             KeyCode::Char(MENU_CHAR) => {
-                return Some(Message::Switching(Screen::Menu, None));
+                let parameters = get_parameters(scene);
+                return Some(Message::Switching(Screen::Menu, parameters));
             }
             KeyCode::Char(HELP_CHAR) => {
-                return Some(Message::Switching(Screen::Help, None));
+                let parameters = get_parameters(scene);
+                return Some(Message::Switching(Screen::Help, parameters));
             }
             _ => {}
         }
@@ -257,6 +259,14 @@ fn get_message(key: KeyEvent) -> Option<Message> {
         KeyCode::Enter => Some(Message::Enter),
         _ => None,
     };
+}
+
+fn get_parameters(scene: &mut Scene) -> Option<PortParameters> {
+    match scene.screen {
+        Screen::Help => scene.help.as_mut().unwrap().parameters.clone(),
+        Screen::Terminal => Some(scene.terminal.as_mut().unwrap().parameters.clone()),
+        _ => None,
+    }
 }
 
 fn init_terminal() -> Result<NolpTerminal> {
@@ -333,7 +343,7 @@ fn switch_screen(scene: &mut Scene, new: Screen, parameters: Option<PortParamete
             let model: MenuModel;
             match parameters {
                 Some(p) => {
-                    model = MenuModel::new(p.name.unwrap());
+                    model = MenuModel::new(p);
                 }
                 None => {
                     model = MenuModel::default();
