@@ -62,13 +62,7 @@ const PADDING: u16 = 1;
 impl Default for TerminalModel {
     fn default() -> TerminalModel {
         TerminalModel {
-            buffer: vec![
-                DataByte {
-                    value: 0x00,
-                    direction: DataDirection::Output
-                };
-                512
-            ],
+            buffer: Vec::new(),
             state: State::Running,
             input: String::from(""),
             bounds: Rect::default(),
@@ -78,7 +72,7 @@ impl Default for TerminalModel {
 }
 
 impl TerminalModel {
-    fn new(parameters: PortParameters) -> TerminalModel {
+    pub fn new(parameters: PortParameters) -> TerminalModel {
         let mut model = TerminalModel::default();
         model.parameters = parameters;
         return model;
@@ -148,9 +142,9 @@ impl Tea for TerminalModel {
 * Utility functions
 *******************************************************************************/
 /******************************************************************************/
-fn get_encoding(model: &mut TerminalModel, area: Rect, mode: Mode) -> Vec<Line> {
+fn get_encoding(model: &mut TerminalModel, area: Rect) -> Vec<Line> {
     let style = Style::default().fg(crate::PLACEHOLDER_COLOR);
-    //    let mode = model.parameters.mode.clone().unwrap();
+    let mode = model.parameters.mode.clone().unwrap();
     let mut encoding: Vec<Line> = Vec::new();
     let mut current: Vec<Span> = Vec::new();
     for data_byte in model.buffer.iter() {
@@ -215,14 +209,14 @@ fn render_pause(frame: &mut Frame, area: Rect) {
 
 fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
     let block = Block::default().padding(Padding::uniform(PADDING));
-    let data = get_encoding(model, area, Mode::Octal);
+    let data = get_encoding(model, area);
     let terminal = Paragraph::new(data).block(block);
     frame.render_widget(terminal, area);
 }
 
 fn update_buffer_input(model: &mut TerminalModel) {
     let input_bytes = model.input.clone().into_bytes();
-    let mode = Mode::Octal;
+    let mode = model.parameters.mode.as_ref().unwrap();
     let text_width = match mode {
         Mode::Hex => 3,
         Mode::Octal => 6,

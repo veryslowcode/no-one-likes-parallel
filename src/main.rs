@@ -83,15 +83,11 @@ struct EventListener {
 impl Default for Scene {
     fn default() -> Scene {
         Scene {
-            // help: None,
-            // device_list: None,
-            // screen: Screen::default(),
-            // menu: Some(MenuModel::default()),
             help: None,
-            menu: None,
+            terminal: None,
             device_list: None,
-            screen: Screen::Terminal,
-            terminal: Some(TerminalModel::default()),
+            screen: Screen::default(),
+            menu: Some(MenuModel::default()),
         }
     }
 }
@@ -136,24 +132,24 @@ impl EventListener {
                 let render_delay = renderer.tick();
                 let next = reader.next().fuse();
                 select! {
-                    event = next => {
-			match event {
-			    Some(Ok(e)) => {
-				EventListener::handle_event(&tx, e)
-			    },
-			    Some(Err(_)) => {
-				EventListener::handle_error(&tx);
-			    },
-			    None => {},
-			}
+                        event = next => {
+                match event {
+                    Some(Ok(e)) => {
+                    EventListener::handle_event(&tx, e)
                     },
-                    _ = tick_delay => {
-			tx.send(NolpEvent::Tick).expect("Failed to send tick event");
-                    }
-                    _ = render_delay => {
-			tx.send(NolpEvent::Render).expect("Failed to send render event");
-                    }
+                    Some(Err(_)) => {
+                    EventListener::handle_error(&tx);
+                    },
+                    None => {},
                 }
+                        },
+                        _ = tick_delay => {
+                tx.send(NolpEvent::Tick).expect("Failed to send tick event");
+                        }
+                        _ = render_delay => {
+                tx.send(NolpEvent::Render).expect("Failed to send render event");
+                        }
+                    }
             }
         });
     }
@@ -183,11 +179,11 @@ async fn main() {
                 Some(m) => match m {
                     Message::Quit => state = State::Stopping,
                     Message::Switching(s, p) => switch_screen(&mut scene, s, p),
-                    ms => update(&mut scene, &mut state, ms)
+                    ms => update(&mut scene, &mut state, ms),
                 },
                 None => {}
             },
-	    NolpEvent::Render => render(&mut terminal, &mut scene),
+            NolpEvent::Render => render(&mut terminal, &mut scene),
             _ => {}
         }
     }
@@ -254,8 +250,8 @@ fn get_message(key: KeyEvent) -> Option<Message> {
     return match key.code {
         KeyCode::Char(PREVIOUS_ELEMENT_CHAR) => Some(Message::PreviousElement),
         KeyCode::Char(NEXT_ELEMENT_CHAR) => Some(Message::NextElement),
-	KeyCode::Char(RESUME_CHAR) => Some(Message::Resume),
-	KeyCode::Char(PAUSE_CHAR) => Some(Message::Pause),
+        KeyCode::Char(RESUME_CHAR) => Some(Message::Resume),
+        KeyCode::Char(PAUSE_CHAR) => Some(Message::Pause),
         KeyCode::Char(input) => Some(Message::Input(input)),
         KeyCode::Backspace => Some(Message::Backspace),
         KeyCode::Enter => Some(Message::Enter),
@@ -364,7 +360,9 @@ fn switch_screen(scene: &mut Scene, new: Screen, parameters: Option<PortParamete
             scene.help = None;
             scene.menu = None;
             scene.device_list = None;
-            scene.terminal = Some(TerminalModel::default());
+            scene.terminal = Some(TerminalModel::new(
+                parameters.expect("Failed to provide port parameters"),
+            ));
         }
     }
 

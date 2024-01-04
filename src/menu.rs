@@ -356,6 +356,34 @@ fn get_layout(fsize: Rect) -> (Rect, Rc<[Rect]>) {
     return (bounds, layout);
 }
 
+fn get_port_parameters(model: &MenuModel) -> PortParameters {
+    let baud_rate = model.inputs[1].value.parse::<u32>().unwrap();
+    let data_bits = model.inputs[2].value.parse::<u8>().unwrap();
+    let stop_bits = model.inputs[3].value.parse::<u8>().unwrap();
+    let parity = match model.inputs[4].value.to_lowercase().as_str() {
+        "even" => Parity::Even,
+        "odd" => Parity::Odd,
+        "none" => Parity::None,
+        _ => unreachable!(),
+    };
+    let mode = match model.inputs[5].value.to_lowercase().as_str() {
+        "ascii" => Mode::Ascii,
+        "hex" => Mode::Hex,
+        "decimal" => Mode::Decimal,
+        "octal" => Mode::Octal,
+        _ => unreachable!(),
+    };
+
+    return PortParameters {
+        name: Some(model.inputs[0].value.clone()),
+        baud_rate: Some(baud_rate),
+        data_bits: Some(data_bits),
+        stop_bits: Some(stop_bits),
+        parity: Some(parity),
+        mode: Some(mode),
+    };
+}
+
 fn render_menu(frame: &mut Frame, area: Rect, model: &mut MenuModel) {
     let scroll_offset = model.offset;
     let mut model_handle = model.clone();
@@ -486,7 +514,8 @@ fn update_state(model: &mut MenuModel) {
         model.set_state(State::Stopping);
     } else if model.selected == start_btn {
         if validate_values(model) {
-            model.set_state(State::Switching(Screen::Menu, None))
+            let parameters = get_port_parameters(model);
+            model.set_state(State::Switching(Screen::Terminal, Some(parameters)));
         } else {
             model.set_state(State::Error(String::from(
                 " Invalid input (ctrl+h) for help ",
