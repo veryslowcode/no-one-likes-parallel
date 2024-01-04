@@ -29,10 +29,7 @@ pub struct TerminalModel {
     state: State,
     bounds: Rect,
     input: String,
-    offset: usize,
-    text_width: usize,
     buffer: Vec<DataByte>,
-    scroll: ScrollbarState,
     parameters: PortParameters,
 }
 
@@ -68,19 +65,16 @@ const PADDING: u16 = 1;
 impl Default for TerminalModel {
     fn default() -> TerminalModel {
         TerminalModel {
-            offset: 0,
-            text_width: 0,
             buffer: vec![
                 DataByte {
                     value: 0x00,
                     direction: DataDirection::Output
                 };
-                1024
+                512
             ],
             state: State::Running,
             input: String::from(""),
             bounds: Rect::default(),
-            scroll: ScrollbarState::default(),
             parameters: PortParameters::default(),
         }
     }
@@ -117,16 +111,6 @@ impl Tea for TerminalModel {
                     self.input.pop();
                 }
             }
-            Message::PreviousElement => {}
-            Message::NextElement => {
-                let current_len =
-                    (self.buffer.len() * self.text_width) / usize::from(self.bounds.width);
-                println!("{}", self.bounds.width);
-                if current_len > usize::from(self.bounds.height) && self.offset + 1 < current_len {
-                    self.offset += 1;
-                    self.scroll = self.scroll.position(self.offset);
-                }
-            }
             Message::Pause => {
                 if self.state != State::Pausing {
                     // Clear the buffer
@@ -152,13 +136,11 @@ impl Tea for TerminalModel {
     fn view(&mut self, frame: &mut Frame) {
         self.bounds = frame.size();
         let layout = get_layout(self.bounds);
-        self.scroll = self.scroll.content_length(usize::from(layout[0].height));
 
         if self.state == State::Pausing {
             render_pause(frame, self.bounds);
         } else {
             render_terminal(frame, layout[0], self);
-            render_scrollbar(frame, layout[0], self);
             render_input(frame, layout[1], self);
         }
     }
@@ -231,22 +213,10 @@ fn render_pause(frame: &mut Frame, area: Rect) {
     frame.render_widget(pause, bounds);
 }
 
-fn render_scrollbar(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
-    let content_len = (model.buffer.len() * model.text_width) / usize::from(model.bounds.width);
-    if usize::from(area.height) <= content_len {
-        let scrollbar = Scrollbar::default()
-            .orientation(ScrollbarOrientation::VerticalRight)
-            .track_symbol(None)
-            .thumb_symbol("");
-
-        frame.render_stateful_widget(scrollbar, area, &mut model.scroll);
-    }
-}
-
 fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
     let block = Block::default().padding(Padding::uniform(PADDING));
-    model.text_width = 6; // Remove and set on new
-    let line = Line::from(get_encoding(model, Mode::Octal)); // Replace mode with actual mode
+    let spans = get_encoding(model, Mode::Octal);
+    let line = Line::from(spans); // Replace mode with actual mode
     let terminal = Paragraph::new(line).block(block).wrap(Wrap { trim: false });
     frame.render_widget(terminal, area);
 }
