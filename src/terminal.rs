@@ -151,31 +151,34 @@ impl Tea for TerminalModel {
 * Utility functions
 *******************************************************************************/
 /******************************************************************************/
-fn get_encoding(model: &mut TerminalModel, mode: Mode) -> Vec<Span> {
+fn get_encoding(model: &mut TerminalModel, area: Rect, mode: Mode) -> Vec<Line> {
     let style = Style::default().fg(crate::PLACEHOLDER_COLOR);
     //    let mode = model.parameters.mode.clone().unwrap();
-    model
-        .buffer
-        .iter()
-        .map(|data_byte| match mode {
-            Mode::Hex => {
-                let text = format!("{:#02X} ", data_byte.value);
-                match data_byte.direction {
-                    DataDirection::Input => Span::styled(text, style),
-                    DataDirection::Output => Span::from(text),
-                }
-            }
-            Mode::Octal => {
-                let text = format!("{:#05o} ", data_byte.value);
-                match data_byte.direction {
-                    DataDirection::Input => Span::styled(text, style),
-                    DataDirection::Output => Span::from(text),
-                }
-            }
-            // TODO implement ascii
-            _ => Span::from(data_byte.value.to_string() + " "),
-        })
-        .collect()
+    let mut encoding: Vec<Line> = Vec::new();
+    let mut current: Vec<Span> = Vec::new();
+    for data_byte in model.buffer.iter() {
+        let (width, text) = match mode {
+            Mode::Hex => (3, format!("{:#02X} ", data_byte.value)),
+            Mode::Octal => (6, format!("{:#05o} ", data_byte.value)),
+            _ => (4, format!("{:#03}", data_byte.value.to_string())),
+        };
+
+        if usize::from(area.width) <= (current.len() * width) + width {
+            encoding.push(Line::from(current));
+            current = Vec::new();
+        }
+
+        match data_byte.direction {
+            DataDirection::Output => current.push(Span::from(text)),
+            DataDirection::Input => current.push(Span::styled(text, style)),
+        }
+    }
+
+    if current.len() > 0 {
+        encoding.push(Line::from(current));
+    }
+
+    return encoding;
 }
 
 fn get_layout(fsize: Rect) -> Rc<[Rect]> {
@@ -215,19 +218,39 @@ fn render_pause(frame: &mut Frame, area: Rect) {
 
 fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
     let block = Block::default().padding(Padding::uniform(PADDING));
-    let spans = get_encoding(model, Mode::Octal);
-    let line = Line::from(spans); // Replace mode with actual mode
-    let terminal = Paragraph::new(line).block(block).wrap(Wrap { trim: false });
+    let data = get_encoding(model, area, Mode::Octal);
+    let terminal = Paragraph::new(data).block(block);
     frame.render_widget(terminal, area);
 }
 
 fn update_buffer_input(model: &mut TerminalModel) {
     let input_bytes = model.input.clone().into_bytes();
+    let mode = Mode::Octal;
+    let text_width = match mode {
+        Mode::Hex => 3,
+        Mode::Octal => 6,
+        _ => 4,
+    };
+    let width = usize::from(model.bounds.width);
+    let height = usize::from(model.bounds.height);
+    
+    let rel_height = height - 5;
+    let rel_width = width / text_width;
+    let mut rel_length = (model.buffer.len() + input_bytes.len() - 1) / rel_width;
+    if width % text_width != 0 {
+	rel_length += 1;
+    }
+
     for value in input_bytes.iter() {
         model.buffer.push(DataByte {
             value: *value,
             direction: DataDirection::Input,
         });
+    }
+
+    if rel_length > rel_height {
+	print!("overflow");
+        model.buffer = Vec::new();
     }
 }
 
