@@ -56,7 +56,7 @@ type NolpTerminal = Terminal<NolpBackend>;
 * Internal Interface
 *******************************************************************************/
 /******************************************************************************/
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 struct Scene {
     screen: Screen,
     help: Option<HelpModel>,
