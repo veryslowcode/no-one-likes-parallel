@@ -173,7 +173,7 @@ fn get_encoding(model: &mut TerminalModel, area: Rect) -> Vec<Line> {
         let (width, text) = match mode {
             Mode::Hex => (3, format!("{:#02X} ", data_byte.value)),
             Mode::Octal => (6, format!("{:#05o} ", data_byte.value)),
-            _ => (4, format!("{:#03}", data_byte.value.to_string())),
+            _ => (4, format!("{:#04} ", data_byte.value)),
         };
 
         if usize::from(area.width) <= (current.len() * width) + width {

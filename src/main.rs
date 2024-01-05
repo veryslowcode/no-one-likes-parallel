@@ -447,20 +447,21 @@ fn main() {
         let mut input_buffer = Vec::new();
         while iteration < 120 {
             let mut rx_lock = serial_rx.try_lock();
-            if let Ok(ref mut mutex) = rx_lock {
+            if let Ok(ref mut rx_mutex) = rx_lock {
                 if input_buffer.len() > 0 {
-                    (**mutex).append(&mut input_buffer);
-                }
-                (**mutex).push(0x00);
+                    (**rx_mutex).append(&mut input_buffer);
+                } else {
+                    (**rx_mutex).push(0x00);
+		}
                 drop(rx_lock);
             }
             let mut tx_lock = serial_tx.try_lock();
-            if let Ok(ref mut mutex) = tx_lock {
-                if (**mutex).len() > 0 {
-                    input_buffer.append(&mut (**mutex));
-                    (**mutex).clear();
-                    drop(tx_lock);
+            if let Ok(ref mut tx_mutex) = tx_lock {
+                if (**tx_mutex).len() > 0 {
+                    input_buffer.append(&mut (**tx_mutex));
+                    (**tx_mutex).clear();
                 }
+                drop(tx_lock);
             }
 	    iteration += 1;
             thread::sleep(Duration::from_millis(500));
