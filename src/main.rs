@@ -26,6 +26,8 @@ use std::{
     io::{stdout, Stdout},
     panic,
     rc::Rc,
+    sync::{Arc, Mutex},
+    thread,
     time::Duration,
 };
 use tokio::{
@@ -163,14 +165,13 @@ impl EventListener {
 }
 
 #[tokio::main]
-async fn main() {
+async fn nolp_main(rx: Arc<Mutex<Vec<u8>>>) {
     set_panic_hook();
 
     let mut state = State::default();
     let mut scene = Scene::default();
     let mut listener = EventListener::new();
     let mut terminal = init_terminal().expect("Failed to initialize terminal");
-
     while state != State::Stopping {
         let event = listener.listen().await.unwrap();
         match event {
@@ -182,6 +183,19 @@ async fn main() {
                 },
                 None => {}
             },
+            NolpEvent::Tick => {
+                if scene.screen == Screen::Terminal {
+                    let mut rx_lock = rx.try_lock();
+                    if let Ok(ref mut mutex) = rx_lock {
+                        if (**mutex).len() > 0 {
+                            let message = Message::Rx((**mutex).clone());
+                            update(&mut scene, &mut state, message);
+                            (**mutex).clear();
+                        }
+                        drop(rx_lock);
+                    }
+                }
+            }
             NolpEvent::Render => render(&mut terminal, &mut scene),
             _ => {}
         }
@@ -401,4 +415,31 @@ fn update(scene: &mut Scene, state: &mut State, msg: Message) {
         switch_screen(scene, screen, parameters);
         *state = State::Running;
     }
+}
+
+/******************************************************************************/
+/*******************************************************************************
+* Entry Point
+*******************************************************************************/
+/******************************************************************************/
+fn main() {
+    let input_buffer: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
+    let _: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
+
+    let serial_rx = Arc::clone(&input_buffer);
+    thread::spawn(move || {
+        let mut iteration = 0;
+        while iteration < 120 {
+            let mut rx_lock = serial_rx.try_lock();
+            if let Ok(ref mut mutex) = rx_lock {
+                (**mutex).push(0xBB);
+                drop(rx_lock);
+            }
+            iteration += 1;
+            thread::sleep(Duration::from_millis(500));
+        }
+    });
+
+    let nolp_rx = Arc::clone(&input_buffer);
+    nolp_main(nolp_rx);
 }

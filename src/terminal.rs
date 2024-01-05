@@ -121,6 +121,14 @@ impl Tea for TerminalModel {
                     self.input = String::from("");
                 }
             }
+            Message::Rx(data) => {
+                for d in data {
+                    self.buffer.push(DataByte {
+                        value: d,
+                        direction: DataDirection::Output,
+                    });
+                }
+            }
             _ => {}
         }
         return self.get_state();

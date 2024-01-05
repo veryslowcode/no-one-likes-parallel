@@ -42,6 +42,7 @@ pub enum Message {
     Enter,
     Pause,
     Resume,
+    Rx(Vec<u8>),
     Backspace,
     Input(char),
     NextElement,
