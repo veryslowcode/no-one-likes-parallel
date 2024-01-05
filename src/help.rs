@@ -142,7 +142,7 @@ fn get_input_info<'a>(width: usize) -> Vec<Line<'a>> {
 
     info.push(Line::from(vec![
         Span::from("Stop bits"),
-        Span::styled(format!("{: >w$}", "1|2|3", w = width), style),
+        Span::styled(format!("{: >w$}", "1|2", w = width), style),
     ]));
 
     info.push(Line::from(vec![

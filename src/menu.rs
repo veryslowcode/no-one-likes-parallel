@@ -583,7 +583,7 @@ fn validate_input(model: &mut MenuModel, input: char) -> bool {
             None => return false,
         },
         3 => match input.to_digit(10) {
-            Some(v) => return (1..=3).contains(&v),
+            Some(v) => return (1..=2).contains(&v),
             None => return false,
         },
         _ => return true,

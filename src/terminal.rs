@@ -171,9 +171,16 @@ fn get_encoding(model: &mut TerminalModel, area: Rect) -> Vec<Line> {
     let mut current: Vec<Span> = Vec::new();
     for data_byte in model.buffer.iter() {
         let (width, text) = match mode {
-            Mode::Hex => (3, format!("{:#02X} ", data_byte.value)),
+            Mode::Hex => (5, format!("{:#04X} ", data_byte.value)),
             Mode::Octal => (6, format!("{:#05o} ", data_byte.value)),
-            _ => (4, format!("{:#04} ", data_byte.value)),
+	    Mode::Ascii => {
+		if data_byte.value >= 32 && data_byte.value <= 126 {
+		    (2, (data_byte.value as char).to_string() + " ")
+		} else {
+		    (2, String::from(". "))
+		}
+	    }
+            Mode::Decimal => (4, format!("{: >3} ", data_byte.value)),
         };
 
         if usize::from(area.width) <= (current.len() * width) + width {
