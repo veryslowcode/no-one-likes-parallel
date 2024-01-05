@@ -165,7 +165,7 @@ impl EventListener {
 }
 
 #[tokio::main]
-async fn nolp_main(rx: Arc<Mutex<Vec<u8>>>) {
+async fn nolp_main(rx: Arc<Mutex<Vec<u8>>>, tx: Arc<Mutex<Vec<u8>>>) {
     set_panic_hook();
 
     let mut state = State::default();
@@ -193,6 +193,16 @@ async fn nolp_main(rx: Arc<Mutex<Vec<u8>>>) {
                             (**mutex).clear();
                         }
                         drop(rx_lock);
+                    }
+                    let mut scene_handle = &mut scene;
+                    let mut buffer = scene_handle.as_mut().terminal.unwrap().get_output_buffer();
+                    if buffer.len() > 0 {
+                        let mut tx_lock = tx.try_lock();
+                        if let Ok(ref mut mutex) = tx_lock {
+                            (**mutex).append(&mut buffer);
+                            drop(tx_lock);
+                            //                            scene.terminal.unwrap().clear_output_buffer();
+                        }
                     }
                 }
             }
@@ -423,23 +433,37 @@ fn update(scene: &mut Scene, state: &mut State, msg: Message) {
 *******************************************************************************/
 /******************************************************************************/
 fn main() {
-    let input_buffer: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
-    let _: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
+    let rx_buffer: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
+    let tx_buffer: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
 
-    let serial_rx = Arc::clone(&input_buffer);
+    let serial_rx = Arc::clone(&rx_buffer);
+    let serial_tx = Arc::clone(&tx_buffer);
     thread::spawn(move || {
         let mut iteration = 0;
+        let mut input_buffer = Vec::new();
         while iteration < 120 {
             let mut rx_lock = serial_rx.try_lock();
             if let Ok(ref mut mutex) = rx_lock {
-                (**mutex).push(0xBB);
+                if input_buffer.len() > 0 {
+                    (**mutex).append(&mut input_buffer);
+                }
+                (**mutex).push(0x00);
                 drop(rx_lock);
             }
             iteration += 1;
+            let mut tx_lock = serial_tx.try_lock();
+            if let Ok(ref mut mutex) = tx_lock {
+                if (**mutex).len() > 0 {
+                    input_buffer.append(&mut (**mutex));
+                    (**mutex).clear();
+                    drop(tx_lock);
+                }
+            }
             thread::sleep(Duration::from_millis(500));
         }
     });
 
-    let nolp_rx = Arc::clone(&input_buffer);
-    nolp_main(nolp_rx);
+    let nolp_rx = Arc::clone(&rx_buffer);
+    let nolp_tx = Arc::clone(&tx_buffer);
+    nolp_main(nolp_rx, nolp_tx);
 }

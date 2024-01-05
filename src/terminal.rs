@@ -26,6 +26,7 @@ pub struct TerminalModel {
     state: State,
     bounds: Rect,
     input: String,
+    out: Vec<u8>,
     buffer: Vec<DataByte>,
     pub parameters: PortParameters,
 }
@@ -62,6 +63,7 @@ const PADDING: u16 = 1;
 impl Default for TerminalModel {
     fn default() -> TerminalModel {
         TerminalModel {
+            out: Vec::new(),
             buffer: Vec::new(),
             state: State::Running,
             input: String::from(""),
@@ -76,6 +78,14 @@ impl TerminalModel {
         let mut model = TerminalModel::default();
         model.parameters = parameters;
         return model;
+    }
+
+    pub fn get_output_buffer(self) -> Vec<u8> {
+        return self.out;
+    }
+
+    pub fn clear_output_buffer(&mut self) {
+        self.out.clear();
     }
 }
 
@@ -242,6 +252,7 @@ fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
 
 fn update_buffer_input(model: &mut TerminalModel) {
     let input_bytes = model.input.clone().into_bytes();
+    model.out.append(&mut input_bytes);
     let mode = model.parameters.mode.as_ref().unwrap();
     let text_width = match mode {
         Mode::Hex => 3,
