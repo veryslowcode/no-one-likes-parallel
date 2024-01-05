@@ -21,7 +21,7 @@ use crate::common::*;
 * Public Interface
 *******************************************************************************/
 /******************************************************************************/
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TerminalModel {
     state: State,
     bounds: Rect,
@@ -80,8 +80,8 @@ impl TerminalModel {
         return model;
     }
 
-    pub fn get_output_buffer(self) -> Vec<u8> {
-        return self.out;
+    pub fn get_output_buffer(&self) -> Vec<u8> {
+        return self.out.clone();
     }
 
     pub fn clear_output_buffer(&mut self) {
@@ -251,7 +251,7 @@ fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
 }
 
 fn update_buffer_input(model: &mut TerminalModel) {
-    let input_bytes = model.input.clone().into_bytes();
+    let mut input_bytes = model.input.clone().into_bytes();
     model.out.append(&mut input_bytes);
     let mode = model.parameters.mode.as_ref().unwrap();
     let text_width = match mode {
@@ -281,4 +281,3 @@ fn update_buffer_input(model: &mut TerminalModel) {
     }
 }
 
-fn update_buffer_output() {}

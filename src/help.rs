@@ -21,7 +21,7 @@ use crate::common::*;
 * Public Interface
 *******************************************************************************/
 /******************************************************************************/
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HelpModel {
     state: State,
     bounds: Rect,

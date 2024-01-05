@@ -23,7 +23,7 @@ use crate::serial::get_available_devices;
 * Public Interface
 *******************************************************************************/
 /******************************************************************************/
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DeviceListModel {
     state: State,
     bounds: Rect,

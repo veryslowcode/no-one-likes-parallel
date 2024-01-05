@@ -58,7 +58,7 @@ type NolpTerminal = Terminal<NolpBackend>;
 * Internal Interface
 *******************************************************************************/
 /******************************************************************************/
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Scene {
     screen: Screen,
     help: Option<HelpModel>,
@@ -185,25 +185,7 @@ async fn nolp_main(rx: Arc<Mutex<Vec<u8>>>, tx: Arc<Mutex<Vec<u8>>>) {
             },
             NolpEvent::Tick => {
                 if scene.screen == Screen::Terminal {
-                    let mut rx_lock = rx.try_lock();
-                    if let Ok(ref mut mutex) = rx_lock {
-                        if (**mutex).len() > 0 {
-                            let message = Message::Rx((**mutex).clone());
-                            update(&mut scene, &mut state, message);
-                            (**mutex).clear();
-                        }
-                        drop(rx_lock);
-                    }
-                    let mut scene_handle = &mut scene;
-                    let mut buffer = scene_handle.as_mut().terminal.unwrap().get_output_buffer();
-                    if buffer.len() > 0 {
-                        let mut tx_lock = tx.try_lock();
-                        if let Ok(ref mut mutex) = tx_lock {
-                            (**mutex).append(&mut buffer);
-                            drop(tx_lock);
-                            //                            scene.terminal.unwrap().clear_output_buffer();
-                        }
-                    }
+		    send_receive(&mut scene, &mut state, &rx, &tx);
                 }
             }
             NolpEvent::Render => render(&mut terminal, &mut scene),
@@ -427,6 +409,28 @@ fn update(scene: &mut Scene, state: &mut State, msg: Message) {
     }
 }
 
+fn send_receive(scene: &mut Scene, state: &mut State, rx: &Arc<Mutex<Vec<u8>>>, tx: &Arc<Mutex<Vec<u8>>>) {
+    let message: Message;
+    let mut rx_lock = rx.try_lock();
+    if let Ok(ref mut mutex) = rx_lock {
+        if (**mutex).len() > 0 {
+            message = Message::Rx((**mutex).clone());
+            update(scene, state, message);
+            (**mutex).clear();
+        }
+        drop(rx_lock);
+    }
+    let terminal = scene.terminal.as_mut().unwrap();
+    let mut buffer = terminal.get_output_buffer();
+    if buffer.len() > 0 {
+        let mut tx_lock = tx.try_lock();
+        if let Ok(ref mut mutex) = tx_lock {
+            (**mutex).append(&mut buffer);
+            drop(tx_lock);
+	    terminal.clear_output_buffer();
+        }
+    }
+}
 /******************************************************************************/
 /*******************************************************************************
 * Entry Point
@@ -450,7 +454,6 @@ fn main() {
                 (**mutex).push(0x00);
                 drop(rx_lock);
             }
-            iteration += 1;
             let mut tx_lock = serial_tx.try_lock();
             if let Ok(ref mut mutex) = tx_lock {
                 if (**mutex).len() > 0 {
@@ -459,6 +462,7 @@ fn main() {
                     drop(tx_lock);
                 }
             }
+	    iteration += 1;
             thread::sleep(Duration::from_millis(500));
         }
     });
