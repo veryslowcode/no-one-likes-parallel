@@ -172,7 +172,6 @@ async fn main() {
     let mut terminal = init_terminal().expect("Failed to initialize terminal");
 
     while state != State::Stopping {
-        //        let msg = handle_event().expect("Failed to poll events");
         let event = listener.listen().await.unwrap();
         match event {
             NolpEvent::User(k) => match get_message(&mut scene, k) {

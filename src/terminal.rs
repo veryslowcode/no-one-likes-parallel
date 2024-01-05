@@ -6,7 +6,6 @@
 * DATE: 01/01/24
 ********************************************************************************/
 /*******************************************************************************/
-use anyhow::{anyhow, Result};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
@@ -14,16 +13,9 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Padding, Paragraph},
     Frame,
 };
-use serialport::SerialPortBuilder;
 use std::rc::Rc;
-use tokio::{
-    self,
-    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
-    task::{self, JoinHandle},
-};
 
 use crate::common::*;
-use crate::serial::*;
 /******************************************************************************/
 /*******************************************************************************
 * Public Interface
@@ -35,23 +27,7 @@ pub struct TerminalModel {
     bounds: Rect,
     input: String,
     buffer: Vec<DataByte>,
-    port: Option<SerialPortBuilder>,
     pub parameters: PortParameters,
-    pub listener: Option<PortListener>,
-}
-
-#[derive(Debug)]
-pub enum PortPacket {
-    Data(Vec<u8>),
-    Error(String),
-}
-
-#[derive(Debug)]
-pub struct PortListener {
-    port: SerialPortBuilder,
-    task: Option<JoinHandle<()>>,
-    sender: UnboundedSender<PortPacket>,
-    receiver: UnboundedReceiver<PortPacket>,
 }
 
 /******************************************************************************/
@@ -86,8 +62,6 @@ const PADDING: u16 = 1;
 impl Default for TerminalModel {
     fn default() -> TerminalModel {
         TerminalModel {
-            port: None,
-            listener: None,
             buffer: Vec::new(),
             state: State::Running,
             input: String::from(""),
@@ -101,22 +75,6 @@ impl TerminalModel {
     pub fn new(parameters: PortParameters) -> TerminalModel {
         let mut model = TerminalModel::default();
         model.parameters = parameters;
-        model.port = match get_port(model.parameters.clone()) {
-            Ok(p) => {
-                model.listener = match PortListener::new(p.clone()) {
-                    Ok(l) => Some(l),
-                    Err(e) => {
-                        model.state = State::Error(e.to_string());
-                        None
-                    }
-                };
-                Some(p)
-            }
-            Err(_) => {
-                model.state = State::Error(String::from(" Failed to open port "));
-                None
-            }
-        };
         return model;
     }
 }
@@ -180,62 +138,6 @@ impl Tea for TerminalModel {
             render_terminal(frame, layout[0], self);
             render_input(frame, layout[1], self);
         }
-    }
-}
-
-impl PortListener {
-    fn new(port: SerialPortBuilder) -> Result<Self> {
-        let (tx, rx) = unbounded_channel();
-        let tx_handle = tx.clone();
-        let port_handle = port.clone();
-        let task = Some(PortListener::start(tx_handle, port_handle));
-
-        Ok(PortListener {
-            receiver: rx,
-            sender: tx,
-            port,
-            task,
-        })
-    }
-
-    fn start(
-        tx: UnboundedSender<PortPacket>,
-        port_builder: SerialPortBuilder,
-    ) -> task::JoinHandle<()> {
-        let task = tokio::spawn(async move {
-            let mut port = match port_builder.open() {
-                Ok(p) => p,
-                Err(_) => {
-                    tx.send(PortPacket::Error(String::from(" Port open failed ")))
-                        .expect("Error notify failed");
-                    return;
-                }
-            };
-            let mut input_buffer: Vec<u8> = Vec::new();
-            loop {
-                match port.read(input_buffer.as_mut_slice()) {
-                    Ok(_) => {
-                        tx.send(PortPacket::Data(input_buffer.clone()))
-                            .expect("Input buffer error");
-                    }
-                    Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {}
-                    Err(_) => {
-                        tx.send(PortPacket::Error(String::from(
-                            "An unexpected error occured during read",
-                        )))
-                        .expect("Error notify failed");
-                    }
-                }
-            }
-        });
-        return task;
-    }
-
-    pub async fn listen(&mut self) -> Result<PortPacket> {
-        self.receiver
-            .recv()
-            .await
-            .ok_or(anyhow!("Receive packet failed"))
     }
 }
 
