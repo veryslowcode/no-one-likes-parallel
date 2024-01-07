@@ -441,15 +441,16 @@ fn send_receive(
 * Entry Point
 *******************************************************************************/
 /******************************************************************************/
-
 fn main() {
     let flag = serial_flag_default();
     let rx_buffer = serial_buffer_default();
     let tx_buffer = serial_buffer_default();
     let parameters = serial_params_default();
 
+    let serial_flag = Arc::clone(&flag);
     let serial_rx = Arc::clone(&rx_buffer);
     let serial_tx = Arc::clone(&tx_buffer);
+    let serial_params = Arc::clone(&parameters);
     thread::spawn(move || {
         let mut iteration = 0;
         let mut input_buffer = Vec::new();
@@ -478,7 +479,30 @@ fn main() {
 
     let nolp_rx = Arc::clone(&rx_buffer);
     let nolp_tx = Arc::clone(&tx_buffer);
+    let nolp_params = Arc::clone(&parameters);
     nolp_main(nolp_rx, nolp_tx);
 }
 
-fn serial_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, p: SerialParams) {}
+fn serial_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, p: SerialParams) {
+    thread::spawn(move || {
+        let mut spawned = false;
+        loop {
+            let f_lock = f.try_lock();
+            if let Ok(ref f_mutex) = f_lock {
+                if **f_mutex {
+                    if !spawned {
+                        // TODO spawn another thread to handle read and write
+                        spawned = true;
+                    }
+                } else {
+                    if spawned {
+                        // TODO close spawn handle
+                        spawned = false;
+                    }
+                }
+                drop(f_lock);
+            }
+            thread::sleep(Duration::from_millis(250));
+        }
+    });
+}
