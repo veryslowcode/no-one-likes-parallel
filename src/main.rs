@@ -185,7 +185,7 @@ async fn nolp_main(rx: Arc<Mutex<Vec<u8>>>, tx: Arc<Mutex<Vec<u8>>>) {
             },
             NolpEvent::Tick => {
                 if scene.screen == Screen::Terminal {
-		    send_receive(&mut scene, &mut state, &rx, &tx);
+                    send_receive(&mut scene, &mut state, &rx, &tx);
                 }
             }
             NolpEvent::Render => render(&mut terminal, &mut scene),
@@ -409,7 +409,12 @@ fn update(scene: &mut Scene, state: &mut State, msg: Message) {
     }
 }
 
-fn send_receive(scene: &mut Scene, state: &mut State, rx: &Arc<Mutex<Vec<u8>>>, tx: &Arc<Mutex<Vec<u8>>>) {
+fn send_receive(
+    scene: &mut Scene,
+    state: &mut State,
+    rx: &Arc<Mutex<Vec<u8>>>,
+    tx: &Arc<Mutex<Vec<u8>>>,
+) {
     let message: Message;
     let mut rx_lock = rx.try_lock();
     if let Ok(ref mut mutex) = rx_lock {
@@ -427,7 +432,7 @@ fn send_receive(scene: &mut Scene, state: &mut State, rx: &Arc<Mutex<Vec<u8>>>, 
         if let Ok(ref mut mutex) = tx_lock {
             (**mutex).append(&mut buffer);
             drop(tx_lock);
-	    terminal.clear_output_buffer();
+            terminal.clear_output_buffer();
         }
     }
 }
@@ -436,9 +441,12 @@ fn send_receive(scene: &mut Scene, state: &mut State, rx: &Arc<Mutex<Vec<u8>>>, 
 * Entry Point
 *******************************************************************************/
 /******************************************************************************/
+
 fn main() {
-    let rx_buffer: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
-    let tx_buffer: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
+    let flag = serial_flag_default();
+    let rx_buffer = serial_buffer_default();
+    let tx_buffer = serial_buffer_default();
+    let parameters = serial_params_default();
 
     let serial_rx = Arc::clone(&rx_buffer);
     let serial_tx = Arc::clone(&tx_buffer);
@@ -451,8 +459,8 @@ fn main() {
                 if input_buffer.len() > 0 {
                     (**rx_mutex).append(&mut input_buffer);
                 } else {
-                    (**rx_mutex).push(0x00);
-		}
+                    //                    (**rx_mutex).push(0x00);
+                }
                 drop(rx_lock);
             }
             let mut tx_lock = serial_tx.try_lock();
@@ -463,7 +471,7 @@ fn main() {
                 }
                 drop(tx_lock);
             }
-	    iteration += 1;
+            iteration += 1;
             thread::sleep(Duration::from_millis(500));
         }
     });
@@ -472,3 +480,5 @@ fn main() {
     let nolp_tx = Arc::clone(&tx_buffer);
     nolp_main(nolp_rx, nolp_tx);
 }
+
+fn serial_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, p: SerialParams) {}

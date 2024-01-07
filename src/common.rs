@@ -11,12 +11,17 @@ use ratatui::{
     style::Color,
     Frame,
 };
+use std::sync::{Arc, Mutex};
 
 /******************************************************************************/
 /*******************************************************************************
 * Public Interface
 *******************************************************************************/
 /******************************************************************************/
+pub type SerialFlag = Arc<Mutex<bool>>;
+pub type SerialBuffer = Arc<Mutex<Vec<u8>>>;
+pub type SerialParams = Arc<Mutex<PortParameters>>;
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum Screen {
     #[default]
@@ -185,4 +190,19 @@ pub fn get_center_bounds(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
         .split(v_center[1]);
 
     return h_center[1];
+}
+
+pub fn serial_buffer_default() -> SerialBuffer {
+    let mutex = Mutex::new(Vec::new());
+    return Arc::new(mutex);
+}
+
+pub fn serial_flag_default() -> SerialFlag {
+    return Arc::new(Mutex::new(false));
+}
+
+pub fn serial_params_default() -> SerialParams {
+    let parameters = PortParameters::default();
+    let mutex = Mutex::new(parameters);
+    return Arc::new(mutex);
 }
