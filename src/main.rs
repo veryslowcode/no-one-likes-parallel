@@ -22,11 +22,12 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Paragraph},
     Frame,
 };
+use serial::read_write_port;
 use std::{
     io::{stdout, Stdout},
     panic,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::Arc,
     thread,
     time::Duration,
 };
@@ -48,6 +49,7 @@ use crate::common::*;
 use crate::device_list::DeviceListModel;
 use crate::help::HelpModel;
 use crate::menu::MenuModel;
+use crate::serial::*;
 use crate::terminal::TerminalModel;
 
 type NolpBackend = CrosstermBackend<Stdout>;
@@ -165,7 +167,7 @@ impl EventListener {
 }
 
 #[tokio::main]
-async fn nolp_main(rx: Arc<Mutex<Vec<u8>>>, tx: Arc<Mutex<Vec<u8>>>) {
+async fn nolp_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, params: SerialParams) {
     set_panic_hook();
 
     let mut state = State::default();
@@ -178,14 +180,14 @@ async fn nolp_main(rx: Arc<Mutex<Vec<u8>>>, tx: Arc<Mutex<Vec<u8>>>) {
             NolpEvent::User(k) => match get_message(&mut scene, k) {
                 Some(m) => match m {
                     Message::Quit => state = State::Stopping,
-                    Message::Switching(s, p) => switch_screen(&mut scene, s, p),
-                    ms => update(&mut scene, &mut state, ms),
+                    Message::Switching(s, p) => switch_screen(&mut scene, s, p, &f, &params),
+                    ms => update(&mut scene, &mut state, ms, &f, &params),
                 },
                 None => {}
             },
             NolpEvent::Tick => {
                 if scene.screen == Screen::Terminal {
-                    send_receive(&mut scene, &mut state, &rx, &tx);
+                    send_receive(&mut scene, &mut state, &f, &rx, &tx, &params);
                 }
             }
             NolpEvent::Render => render(&mut terminal, &mut scene),
@@ -339,7 +341,13 @@ fn set_panic_hook() {
     }));
 }
 
-fn switch_screen(scene: &mut Scene, new: Screen, parameters: Option<PortParameters>) {
+fn switch_screen(
+    scene: &mut Scene,
+    new: Screen,
+    parameters: Option<PortParameters>,
+    f: &SerialFlag,
+    p: &SerialParams,
+) {
     match new {
         Screen::Menu => {
             let model: MenuModel;
@@ -372,16 +380,29 @@ fn switch_screen(scene: &mut Scene, new: Screen, parameters: Option<PortParamete
             scene.help = None;
             scene.menu = None;
             scene.device_list = None;
-            scene.terminal = Some(TerminalModel::new(
-                parameters.expect("Failed to provide port parameters"),
-            ));
+            let params = parameters.expect("Failed to provide port parameters");
+            let mut p_lock = p.try_lock();
+            let mut f_lock = f.try_lock();
+            if let Ok(ref mut p_mutex) = p_lock {
+                if let Ok(ref mut f_mutex) = f_lock {
+                    **p_mutex = params.clone();
+                    **f_mutex = true;
+                    scene.terminal = Some(TerminalModel::new(params));
+                }
+            }
         }
     }
 
     scene.screen = new;
 }
 
-fn update(scene: &mut Scene, state: &mut State, msg: Message) {
+fn update(
+    scene: &mut Scene,
+    state: &mut State,
+    msg: Message,
+    f: &SerialFlag,
+    params: &SerialParams,
+) {
     match scene.screen {
         Screen::Menu => {
             let model = scene.menu.as_mut().unwrap();
@@ -404,7 +425,7 @@ fn update(scene: &mut Scene, state: &mut State, msg: Message) {
     if let State::Switching(s, p) = state {
         let screen = s.clone();
         let parameters = p.clone();
-        switch_screen(scene, screen, parameters);
+        switch_screen(scene, screen, parameters, f, params);
         *state = State::Running;
     }
 }
@@ -412,15 +433,17 @@ fn update(scene: &mut Scene, state: &mut State, msg: Message) {
 fn send_receive(
     scene: &mut Scene,
     state: &mut State,
-    rx: &Arc<Mutex<Vec<u8>>>,
-    tx: &Arc<Mutex<Vec<u8>>>,
+    f: &SerialFlag,
+    rx: &SerialBuffer,
+    tx: &SerialBuffer,
+    p: &SerialParams,
 ) {
     let message: Message;
     let mut rx_lock = rx.try_lock();
     if let Ok(ref mut mutex) = rx_lock {
         if (**mutex).len() > 0 {
             message = Message::Rx((**mutex).clone());
-            update(scene, state, message);
+            update(scene, state, message, f, p);
             (**mutex).clear();
         }
         drop(rx_lock);
@@ -451,52 +474,41 @@ fn main() {
     let serial_rx = Arc::clone(&rx_buffer);
     let serial_tx = Arc::clone(&tx_buffer);
     let serial_params = Arc::clone(&parameters);
-    thread::spawn(move || {
-        let mut iteration = 0;
-        let mut input_buffer = Vec::new();
-        while iteration < 120 {
-            let mut rx_lock = serial_rx.try_lock();
-            if let Ok(ref mut rx_mutex) = rx_lock {
-                if input_buffer.len() > 0 {
-                    (**rx_mutex).append(&mut input_buffer);
-                } else {
-                    //                    (**rx_mutex).push(0x00);
-                }
-                drop(rx_lock);
-            }
-            let mut tx_lock = serial_tx.try_lock();
-            if let Ok(ref mut tx_mutex) = tx_lock {
-                if (**tx_mutex).len() > 0 {
-                    input_buffer.append(&mut (**tx_mutex));
-                    (**tx_mutex).clear();
-                }
-                drop(tx_lock);
-            }
-            iteration += 1;
-            thread::sleep(Duration::from_millis(500));
-        }
-    });
+    serial_main(serial_flag, serial_rx, serial_tx, serial_params);
 
+    let nolp_flag = Arc::clone(&flag);
     let nolp_rx = Arc::clone(&rx_buffer);
     let nolp_tx = Arc::clone(&tx_buffer);
     let nolp_params = Arc::clone(&parameters);
-    nolp_main(nolp_rx, nolp_tx);
+    nolp_main(nolp_flag, nolp_rx, nolp_tx, nolp_params);
 }
 
 fn serial_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, p: SerialParams) {
     thread::spawn(move || {
         let mut spawned = false;
+        let mut handle = None;
         loop {
             let f_lock = f.try_lock();
             if let Ok(ref f_mutex) = f_lock {
                 if **f_mutex {
                     if !spawned {
-                        // TODO spawn another thread to handle read and write
-                        spawned = true;
+                        let p_lock = p.try_lock();
+                        if let Ok(ref p_mutex) = p_lock {
+                            let port = match get_port((**p_mutex).clone()) {
+                                Ok(pr) => pr,
+                                Err(_) => {
+                                    // Handle error
+                                    return;
+                                }
+                            };
+                            handle = Some(read_write_port(port, Arc::clone(&rx), Arc::clone(&tx)));
+                            spawned = true;
+                        }
                     }
                 } else {
                     if spawned {
-                        // TODO close spawn handle
+                        handle.unwrap().join().unwrap();
+                        handle = None;
                         spawned = false;
                     }
                 }
