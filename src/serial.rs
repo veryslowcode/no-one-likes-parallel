@@ -8,7 +8,7 @@
 /*******************************************************************************/
 use anyhow::Result;
 use serialport::{DataBits, Parity as SParity, SerialPortBuilder, StopBits};
-use std::{io::ErrorKind, thread, time::Duration};
+use std::{io::ErrorKind, sync::Arc, thread, time::Duration};
 
 use crate::common::*;
 /******************************************************************************/
@@ -56,13 +56,15 @@ pub fn get_port(parameters: PortParameters) -> Result<SerialPortBuilder> {
 
 pub fn read_write_port(
     port: SerialPortBuilder,
-    rx: SerialBuffer,
-    tx: SerialBuffer,
+    rx: &SerialBuffer,
+    tx: &SerialBuffer,
 ) -> thread::JoinHandle<()> {
+    let rx_handle = Arc::clone(rx);
+    let tx_handle = Arc::clone(tx);
     thread::spawn(move || {
         let mut connection = port.open().expect("Connection failed");
         loop {
-            let mut tx_lock = tx.try_lock();
+            let mut tx_lock = tx_handle.try_lock();
             if let Ok(ref mut tx_mutex) = tx_lock {
                 if (**tx_mutex).len() > 0 {
                     match connection.write(tx_mutex) {
@@ -79,7 +81,7 @@ pub fn read_write_port(
                 drop(tx_lock);
             }
 
-            let mut rx_lock = rx.try_lock();
+            let mut rx_lock = rx_handle.try_lock();
             if let Ok(ref mut rx_mutex) = rx_lock {
                 let mut buffer = vec![0; 1];
                 match connection.read(buffer.as_mut_slice()) {
@@ -93,6 +95,7 @@ pub fn read_write_port(
                 }
                 drop(rx_lock);
             }
+            thread::sleep(Duration::from_millis(100));
         }
     })
 }

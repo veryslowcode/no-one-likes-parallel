@@ -125,7 +125,6 @@ impl Tea for TerminalModel {
                 }
             }
             Message::Enter => {
-                // TODO send to port
                 if self.input.len() > 0 {
                     update_buffer_input(self);
                     self.input = String::from("");

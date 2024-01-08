@@ -98,7 +98,7 @@ impl Default for Scene {
 
 impl EventListener {
     fn new() -> Self {
-        let tick_rate = Duration::from_millis(250);
+        let tick_rate = Duration::from_millis(150);
         let frame_rate = Duration::from_secs_f64(1.0 / 60.0);
         let (tx, rx) = unbounded_channel();
         let tx_handle = tx.clone();
@@ -501,7 +501,7 @@ fn serial_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, p: SerialParam
                                     return;
                                 }
                             };
-                            handle = Some(read_write_port(port, Arc::clone(&rx), Arc::clone(&tx)));
+                            handle = Some(read_write_port(port, &rx, &tx));
                             spawned = true;
                         }
                     }
@@ -514,7 +514,7 @@ fn serial_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, p: SerialParam
                 }
                 drop(f_lock);
             }
-            thread::sleep(Duration::from_millis(250));
+            thread::sleep(Duration::from_millis(500));
         }
     });
 }
