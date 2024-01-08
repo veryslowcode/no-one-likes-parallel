@@ -258,8 +258,9 @@ fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
 }
 
 fn update_buffer_input(model: &mut TerminalModel) {
-    let mut input_bytes = model.input.clone().into_bytes();
-    model.out.append(&mut input_bytes);
+    let input_bytes = model.input.clone().into_bytes();
+    let mut input_handle = input_bytes.clone();
+    model.out.append(&mut input_handle);
     let mode = model.parameters.mode.as_ref().unwrap();
     let text_width = match mode {
         Mode::Hex => 3,
