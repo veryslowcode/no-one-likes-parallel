@@ -20,6 +20,7 @@ use std::sync::{Arc, Mutex};
 /******************************************************************************/
 pub type SerialFlag = Arc<Mutex<bool>>;
 pub type SerialBuffer = Arc<Mutex<Vec<u8>>>;
+pub type SerialError = Arc<Mutex<Option<String>>>;
 pub type SerialParams = Arc<Mutex<PortParameters>>;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -194,6 +195,11 @@ pub fn get_center_bounds(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
 
 pub fn serial_buffer_default() -> SerialBuffer {
     let mutex = Mutex::new(Vec::new());
+    return Arc::new(mutex);
+}
+
+pub fn serial_error_default() -> SerialError {
+    let mutex = Mutex::new(None);
     return Arc::new(mutex);
 }
 

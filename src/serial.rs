@@ -8,7 +8,7 @@
 /*******************************************************************************/
 use anyhow::Result;
 use serialport::{DataBits, Parity as SParity, SerialPortBuilder, StopBits};
-use std::{io::ErrorKind, sync::Arc, thread, time::Duration};
+use std::{io::ErrorKind, process, sync::Arc, thread, time::Duration};
 
 use crate::common::*;
 /******************************************************************************/
@@ -34,6 +34,17 @@ pub fn get_available_devices() -> Result<Vec<String>> {
         devices.push(port.port_name);
     }
     return Ok(devices);
+}
+
+pub fn get_error(error: &SerialError) -> Option<String> {
+    let e_lock = error.try_lock();
+    if let Ok(ref e_mutex) = e_lock {
+        if (**e_mutex).is_some() {
+            return Some((**e_mutex).clone().unwrap());
+        }
+        drop(e_lock);
+    }
+    return None;
 }
 
 pub fn get_port(parameters: PortParameters) -> Result<SerialPortBuilder> {
@@ -89,11 +100,25 @@ pub fn read_write_port(
     port: SerialPortBuilder,
     rx: &SerialBuffer,
     tx: &SerialBuffer,
+    error: &SerialError,
 ) -> thread::JoinHandle<()> {
-    let rx_handle = Arc::clone(rx);
-    let tx_handle = Arc::clone(tx);
+    let rx_handle = Arc::clone(&rx);
+    let tx_handle = Arc::clone(&tx);
+    let e_handle = Arc::clone(&error);
     thread::spawn(move || {
-        let mut connection = port.open().expect("Unexpected error occurred opening port");
+        let mut connection;
+        match port.open() {
+            Ok(c) => connection = c,
+            Err(_) => {
+                let mut e_lock = e_handle.try_lock();
+                if let Ok(ref mut e_mutex) = e_lock {
+                    **e_mutex = Some(String::from("Failed to open port"));
+                    drop(e_lock);
+                }
+                return;
+            }
+        };
+
         loop {
             let mut tx_lock = tx_handle.try_lock();
             if let Ok(ref mut tx_mutex) = tx_lock {
@@ -104,7 +129,11 @@ pub fn read_write_port(
                         }
                         Err(ref e) if e.kind() == ErrorKind::TimedOut => {}
                         Err(_) => {
-                            panic!("Unexpected error occurred attempting to write");
+                            let mut e_lock = e_handle.try_lock();
+                            if let Ok(ref mut e_mutex) = e_lock {
+                                **e_mutex = Some(String::from("Write failed"));
+                                drop(e_lock);
+                            }
                         }
                     };
                     (**tx_mutex).clear();
@@ -121,7 +150,10 @@ pub fn read_write_port(
                     }
                     Err(ref e) if e.kind() == ErrorKind::TimedOut => {}
                     Err(_) => {
-                        panic!("Unexpected error occurred attempting to read");
+                        let mut e_lock = e_handle.try_lock();
+                        if let Ok(ref mut e_mutex) = e_lock {
+                            **e_mutex = Some(String::from("Read failed"));
+                        }
                     }
                 }
                 drop(rx_lock);
