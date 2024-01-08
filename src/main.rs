@@ -166,38 +166,6 @@ impl EventListener {
     }
 }
 
-#[tokio::main]
-async fn nolp_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, params: SerialParams) {
-    set_panic_hook();
-
-    let mut state = State::default();
-    let mut scene = Scene::default();
-    let mut listener = EventListener::new();
-    let mut terminal = init_terminal().expect("Failed to initialize terminal");
-    while state != State::Stopping {
-        let event = listener.listen().await.unwrap();
-        match event {
-            NolpEvent::User(k) => match get_message(&mut scene, k) {
-                Some(m) => match m {
-                    Message::Quit => state = State::Stopping,
-                    Message::Switching(s, p) => switch_screen(&mut scene, s, p, &f, &params),
-                    ms => update(&mut scene, &mut state, ms, &f, &params),
-                },
-                None => {}
-            },
-            NolpEvent::Tick => {
-                if scene.screen == Screen::Terminal {
-                    send_receive(&mut scene, &mut state, &f, &rx, &tx, &params);
-                }
-            }
-            NolpEvent::Render => render(&mut terminal, &mut scene),
-            _ => {}
-        }
-    }
-
-    reset_terminal().expect("Failed to reset terminal");
-}
-
 /******************************************************************************/
 /*******************************************************************************
 * Utility Functions
@@ -344,14 +312,25 @@ fn set_panic_hook() {
 fn switch_screen(
     scene: &mut Scene,
     new: Screen,
-    parameters: Option<PortParameters>,
-    f: &SerialFlag,
-    p: &SerialParams,
+    port_params: Option<PortParameters>,
+    flag: &SerialFlag,
+    serial_params: &SerialParams,
 ) {
+    if scene.screen == new {
+        return;
+    }
+
+    if scene.screen == Screen::Terminal {
+        if !close_connection(flag) {
+            // TODO state = error
+            panic!("Failed to close connection");
+        }
+    }
+
     match new {
         Screen::Menu => {
             let model: MenuModel;
-            match parameters {
+            match port_params {
                 Some(p) => {
                     model = MenuModel::new(p);
                 }
@@ -374,21 +353,15 @@ fn switch_screen(
             scene.menu = None;
             scene.terminal = None;
             scene.device_list = None;
-            scene.help = Some(HelpModel::new(scene.screen.clone(), parameters));
+            scene.help = Some(HelpModel::new(scene.screen.clone(), port_params));
         }
         Screen::Terminal => {
             scene.help = None;
             scene.menu = None;
             scene.device_list = None;
-            let params = parameters.expect("Failed to provide port parameters");
-            let mut p_lock = p.try_lock();
-            let mut f_lock = f.try_lock();
-            if let Ok(ref mut p_mutex) = p_lock {
-                if let Ok(ref mut f_mutex) = f_lock {
-                    **p_mutex = params.clone();
-                    **f_mutex = true;
-                    scene.terminal = Some(TerminalModel::new(params));
-                }
+            let params = port_params.expect("Failed to provide port parameters");
+            if open_connection(flag, serial_params, params.clone()) {
+                scene.terminal = Some(TerminalModel::new(params));
             }
         }
     }
@@ -400,7 +373,7 @@ fn update(
     scene: &mut Scene,
     state: &mut State,
     msg: Message,
-    f: &SerialFlag,
+    flag: &SerialFlag,
     params: &SerialParams,
 ) {
     match scene.screen {
@@ -425,7 +398,7 @@ fn update(
     if let State::Switching(s, p) = state {
         let screen = s.clone();
         let parameters = p.clone();
-        switch_screen(scene, screen, parameters, f, params);
+        switch_screen(scene, screen, parameters, flag, params);
         *state = State::Running;
     }
 }
@@ -433,17 +406,17 @@ fn update(
 fn send_receive(
     scene: &mut Scene,
     state: &mut State,
-    f: &SerialFlag,
+    flag: &SerialFlag,
     rx: &SerialBuffer,
     tx: &SerialBuffer,
-    p: &SerialParams,
+    params: &SerialParams,
 ) {
     let message: Message;
     let mut rx_lock = rx.try_lock();
     if let Ok(ref mut mutex) = rx_lock {
         if (**mutex).len() > 0 {
             message = Message::Rx((**mutex).clone());
-            update(scene, state, message, f, p);
+            update(scene, state, message, flag, params);
             (**mutex).clear();
         }
         drop(rx_lock);
@@ -517,4 +490,36 @@ fn serial_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, p: SerialParam
             thread::sleep(Duration::from_millis(500));
         }
     });
+}
+
+#[tokio::main]
+async fn nolp_main(flag: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, params: SerialParams) {
+    set_panic_hook();
+
+    let mut state = State::default();
+    let mut scene = Scene::default();
+    let mut listener = EventListener::new();
+    let mut terminal = init_terminal().expect("Failed to initialize terminal");
+    while state != State::Stopping {
+        let event = listener.listen().await.unwrap();
+        match event {
+            NolpEvent::User(k) => match get_message(&mut scene, k) {
+                Some(m) => match m {
+                    Message::Quit => state = State::Stopping,
+                    Message::Switching(s, p) => switch_screen(&mut scene, s, p, &flag, &params),
+                    ms => update(&mut scene, &mut state, ms, &flag, &params),
+                },
+                None => {}
+            },
+            NolpEvent::Tick => {
+                if scene.screen == Screen::Terminal {
+                    send_receive(&mut scene, &mut state, &flag, &rx, &tx, &params);
+                }
+            }
+            NolpEvent::Render => render(&mut terminal, &mut scene),
+            _ => {}
+        }
+    }
+
+    reset_terminal().expect("Failed to reset terminal");
 }
