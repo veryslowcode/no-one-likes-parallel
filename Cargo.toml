@@ -1,5 +1,5 @@
 [package]
-name = "no-one-likes-parallel"
+name = "nolp"
 version = "0.1.0"
 edition = "2021"
 
