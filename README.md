@@ -56,3 +56,4 @@ If you would like to contribute, by all means please do so. If you need any help
 - `custom keymaps` Adding a config file in the root of the directory to control this may be a simple yet effective approach.
 - `additional settings` This may include a secondary menu view. Potential for features like new line toggle.
 - `mouse input` Not sure the effort involved in this, it may be simple or a little more involved.
+- `custom theme` This may be able to piggyback off a config file with custom keymaps.
