@@ -8,7 +8,7 @@
 /*******************************************************************************/
 use anyhow::Result;
 use serialport::{DataBits, Parity as SParity, SerialPortBuilder, StopBits};
-use std::{io::ErrorKind, process, sync::Arc, thread, time::Duration};
+use std::{io::ErrorKind, sync::Arc, thread, time::Duration};
 
 use crate::common::*;
 /******************************************************************************/
@@ -37,10 +37,12 @@ pub fn get_available_devices() -> Result<Vec<String>> {
 }
 
 pub fn get_error(error: &SerialError) -> Option<String> {
-    let e_lock = error.try_lock();
-    if let Ok(ref e_mutex) = e_lock {
+    let mut e_lock = error.try_lock();
+    if let Ok(ref mut e_mutex) = e_lock {
         if (**e_mutex).is_some() {
-            return Some((**e_mutex).clone().unwrap());
+            let msg = (**e_mutex).clone().unwrap();
+            (**e_mutex) = None;
+            return Some(msg);
         }
         drop(e_lock);
     }
@@ -100,26 +102,34 @@ pub fn read_write_port(
     port: SerialPortBuilder,
     rx: &SerialBuffer,
     tx: &SerialBuffer,
+    flag: &SerialFlag,
     error: &SerialError,
 ) -> thread::JoinHandle<()> {
     let rx_handle = Arc::clone(&rx);
     let tx_handle = Arc::clone(&tx);
+    let f_handle = Arc::clone(&flag);
     let e_handle = Arc::clone(&error);
     thread::spawn(move || {
         let mut connection;
+        let mut f = true;
+        let f_lock = f_handle.try_lock();
+        if let Ok(ref f_mutex) = f_lock {
+            f = (**f_mutex).clone();
+            drop(f_lock);
+        }
         match port.open() {
             Ok(c) => connection = c,
             Err(_) => {
                 let mut e_lock = e_handle.try_lock();
                 if let Ok(ref mut e_mutex) = e_lock {
-                    **e_mutex = Some(String::from("Failed to open port"));
+                    **e_mutex = Some(String::from(" Failed to open port "));
                     drop(e_lock);
                 }
                 return;
             }
         };
 
-        loop {
+        while f {
             let mut tx_lock = tx_handle.try_lock();
             if let Ok(ref mut tx_mutex) = tx_lock {
                 if (**tx_mutex).len() > 0 {
@@ -131,7 +141,7 @@ pub fn read_write_port(
                         Err(_) => {
                             let mut e_lock = e_handle.try_lock();
                             if let Ok(ref mut e_mutex) = e_lock {
-                                **e_mutex = Some(String::from("Write failed"));
+                                **e_mutex = Some(String::from(" Write failed "));
                                 drop(e_lock);
                             }
                         }
@@ -152,13 +162,22 @@ pub fn read_write_port(
                     Err(_) => {
                         let mut e_lock = e_handle.try_lock();
                         if let Ok(ref mut e_mutex) = e_lock {
-                            **e_mutex = Some(String::from("Read failed"));
+                            **e_mutex = Some(String::from(" Read failed "));
                         }
                     }
                 }
                 drop(rx_lock);
             }
+
+            let f_lock = f_handle.try_lock();
+            if let Ok(ref f_mutex) = f_lock {
+                f = (**f_mutex).clone();
+                drop(f_lock);
+            }
+
             thread::sleep(Duration::from_millis(100));
         }
+
+        drop(connection);
     })
 }

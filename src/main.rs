@@ -271,22 +271,38 @@ fn render_screen(terminal: &mut NolpTerminal, model: &mut (impl Tea + Nolp)) {
         .expect("Failed to render frame");
 }
 
-fn render(terminal: &mut NolpTerminal, scene: &mut Scene) {
+fn render(terminal: &mut NolpTerminal, scene: &mut Scene, state: &mut State, error: &SerialError) {
     match scene.screen {
         Screen::Menu => {
             let model = scene.menu.as_mut().unwrap();
+            if let Some(e) = get_error(error) {
+                *state = State::Error(e.clone());
+                model.set_state(State::Error(e));
+            }
             render_screen(terminal, model);
         }
         Screen::DeviceList => {
             let model = scene.device_list.as_mut().unwrap();
+            if let Some(e) = get_error(error) {
+                *state = State::Error(e.clone());
+                model.set_state(State::Error(e));
+            }
             render_screen(terminal, model);
         }
         Screen::Help => {
             let model = scene.help.as_mut().unwrap();
+            if let Some(e) = get_error(error) {
+                *state = State::Error(e.clone());
+                model.set_state(State::Error(e));
+            }
             render_screen(terminal, model);
         }
         Screen::Terminal => {
             let model = scene.terminal.as_mut().unwrap();
+            if let Some(e) = get_error(error) {
+                *state = State::Error(e.clone());
+                model.set_state(State::Error(e));
+            }
             render_screen(terminal, model);
         }
     };
@@ -310,23 +326,17 @@ fn set_panic_hook() {
 }
 
 fn switch_screen(
-    scene: &mut Scene,
     new: Screen,
-    port_params: Option<PortParameters>,
+    scene: &mut Scene,
     flag: &SerialFlag,
+    port_params: Option<PortParameters>,
     serial_params: &SerialParams,
 ) {
-    if scene.screen == new {
-        return;
-    }
-
     if scene.screen == Screen::Terminal {
         if !close_connection(flag) {
-            // TODO state = error
             panic!("Failed to close connection");
         }
     }
-
     match new {
         Screen::Menu => {
             let model: MenuModel;
@@ -415,17 +425,14 @@ fn update(
     if let State::Switching(s, p) = state {
         let screen = s.clone();
         let parameters = p.clone();
-        switch_screen(scene, screen, parameters, flag, params);
+        if scene.screen == Screen::Terminal {
+            if !close_connection(flag) {
+                panic!("Failed to close connection");
+            }
+        }
+        switch_screen(screen, scene, flag, parameters, params);
         *state = State::Running;
     }
-
-    // let e_lock = error.try_lock();
-    // if let Ok(ref e_mutex) = e_lock {
-    //     if (**e_mutex).is_some() {
-    //         *state = State::Error((**e_mutex).clone().unwrap());
-    //     }
-    //     drop(e_lock);
-    // }
 }
 
 fn send_receive(
@@ -488,7 +495,7 @@ fn main() {
     let nolp_rx = Arc::clone(&rx_buffer);
     let nolp_tx = Arc::clone(&tx_buffer);
     let nolp_params = Arc::clone(&parameters);
-    nolp_main(nolp_flag, nolp_rx, nolp_tx, nolp_params, nolp_error);
+    nolp_main(nolp_flag, nolp_rx, nolp_tx, nolp_error, nolp_params);
 }
 
 fn serial_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, p: SerialParams, e: SerialError) {
@@ -498,7 +505,7 @@ fn serial_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, p: SerialParam
         loop {
             let f_lock = f.try_lock();
             if let Ok(ref f_mutex) = f_lock {
-                if **f_mutex {
+                if (**f_mutex) == true {
                     if !spawned {
                         let p_lock = p.try_lock();
                         if let Ok(ref p_mutex) = p_lock {
@@ -507,13 +514,13 @@ fn serial_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, p: SerialParam
                                 Err(_) => {
                                     let mut e_lock = e.try_lock();
                                     if let Ok(ref mut e_mutex) = e_lock {
-                                        **e_mutex = Some(String::from("Create port failed"));
+                                        **e_mutex = Some(String::from(" Create port failed "));
                                         drop(e_lock);
                                     }
                                     return;
                                 }
                             };
-                            handle = Some(read_write_port(port, &rx, &tx, &e));
+                            handle = Some(read_write_port(port, &rx, &tx, &f, &e));
                             spawned = true;
                         }
                     }
@@ -536,8 +543,8 @@ async fn nolp_main(
     flag: SerialFlag,
     rx: SerialBuffer,
     tx: SerialBuffer,
+    error: SerialError,
     params: SerialParams,
-    e: SerialError,
 ) {
     set_panic_hook();
 
@@ -551,17 +558,17 @@ async fn nolp_main(
             NolpEvent::User(k) => match get_message(&mut scene, k) {
                 Some(m) => match m {
                     Message::Quit => state = State::Stopping,
-                    Message::Switching(s, p) => switch_screen(&mut scene, s, p, &flag, &params),
-                    ms => update(&mut scene, &mut state, ms, &flag, &e, &params),
+                    Message::Switching(s, p) => switch_screen(s, &mut scene, &flag, p, &params),
+                    ms => update(&mut scene, &mut state, ms, &flag, &error, &params),
                 },
                 None => {}
             },
             NolpEvent::Tick => {
                 if scene.screen == Screen::Terminal {
-                    send_receive(&mut scene, &mut state, &flag, &rx, &tx, &e, &params);
+                    send_receive(&mut scene, &mut state, &flag, &rx, &tx, &error, &params);
                 }
             }
-            NolpEvent::Render => render(&mut terminal, &mut scene),
+            NolpEvent::Render => render(&mut terminal, &mut scene, &mut state, &error),
             _ => {}
         }
     }
