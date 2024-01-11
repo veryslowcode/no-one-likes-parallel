@@ -91,10 +91,10 @@ pub fn open_connection(
             **p_mutex = port_params.clone();
             **f_mutex = true;
             success = true;
-            drop(f_lock);
-        }
+        }         
+        drop(f_lock);
         drop(p_lock);
-    }
+    }     
     return success;
 }
 
@@ -129,7 +129,7 @@ pub fn read_write_port(
             }
         };
 
-        while f {
+        while f == true {
             let mut tx_lock = tx_handle.try_lock();
             if let Ok(ref mut tx_mutex) = tx_lock {
                 if (**tx_mutex).len() > 0 {

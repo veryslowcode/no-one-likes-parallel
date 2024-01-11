@@ -372,7 +372,7 @@ fn switch_screen(
             let params = port_params.expect("Failed to provide port parameters");
             if open_connection(flag, serial_params, params.clone()) {
                 scene.terminal = Some(TerminalModel::new(params));
-            }
+            } 
         }
     }
 
@@ -522,16 +522,18 @@ fn serial_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, p: SerialParam
                             };
                             handle = Some(read_write_port(port, &rx, &tx, &f, &e));
                             spawned = true;
+                            drop(p_lock);
                         }
                     }
+                    drop(f_lock);
                 } else {
+                    drop(f_lock);
                     if spawned {
                         handle.unwrap().join().unwrap();
                         handle = None;
                         spawned = false;
                     }
                 }
-                drop(f_lock);
             }
             thread::sleep(Duration::from_millis(500));
         }
