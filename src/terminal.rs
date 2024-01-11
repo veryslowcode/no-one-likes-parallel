@@ -207,6 +207,22 @@ fn get_layout(fsize: Rect) -> Rc<[Rect]> {
         .split(fsize)
 }
 
+fn get_number_from_char(input: char) -> u8 {
+    match input {
+        '0' => 0_u8,
+        '1' => 1_u8,
+        '2' => 2_u8,
+        '3' => 3_u8,
+        '4' => 4_u8,
+        '5' => 5_u8,
+        '6' => 6_u8,
+        '7' => 7_u8,
+        '8' => 8_u8,
+        '9' => 9_u8,
+        _ => input as u8
+    }
+}
+
 fn render_error(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
     let bounds = get_center_bounds(50, 50, area);
     let style = Style::default()
@@ -257,7 +273,10 @@ fn render_terminal(frame: &mut Frame, area: Rect, model: &mut TerminalModel) {
 }
 
 fn update_buffer_input(model: &mut TerminalModel) {
-    let input_bytes = model.input.clone().into_bytes();
+    let input_bytes: Vec<u8> = model.input.clone().into_bytes().iter().map(|&value| {
+        // Necessary due to the manner by which crossterm sends number-key input
+        get_number_from_char(value as char)
+    }).collect();
     let mut input_handle = input_bytes.clone();
     model.out.append(&mut input_handle);
     let mode = model.parameters.mode.as_ref().unwrap();
