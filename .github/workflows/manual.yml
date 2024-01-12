@@ -1,0 +1,66 @@
+on:
+  push:
+    tags:
+      - 'v*'
+      
+name: Manual workflow
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Get Libudev
+      run: sudo apt install libudev-dev
+    - name: Get PkgConfig
+      run: sudo apt install pkg-config
+    - name: Build
+      run: cargo build --release
+    - name: Upload
+      uses: actions/upload-artifact@v3
+      with:
+        name: linux_x86-64
+        path: ${{github.workspace}}/target/release/nolp
+  macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo build --release
+    - name: Upload
+      uses: actions/upload-artifact@v3
+      with:
+        name: macos_x86-64
+        path: ${{github.workspace}}/target/release/nolp
+  windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build
+      run: cargo build --release
+    - name: Upload
+      uses: actions/upload-artifact@v3
+      with:
+        name: windows_x86-64
+        path: ${{github.workspace}}/target/release/nolp.exe
+  release:
+    needs: [linux]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: ./nolp
+    - name: Compress Linux
+      run: tar -czf ./nolp/linux_x86-64.tar.gz ./nolp/linux_x86-64
+    - name: Compress MacOS
+      run: tar -czf ./nolp/macos_x86-64.tar.gz ./nolp/macos_x86-64
+    - name: Compress Windows
+      run: zip -r ./nolp/windows_x86-64.zip ./nolp/windows_x86-64
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ./nolp/linux_x86-64.tar.gz
+          ./nolp/macos_x86-64.tar.gz
+          ./nolp/windows_x86-64.zip
