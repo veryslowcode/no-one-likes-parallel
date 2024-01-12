@@ -44,7 +44,7 @@ jobs:
         name: windows_x86-64
         path: ${{github.workspace}}/target/release/nolp.exe
   release:
-    needs: [linux]
+    needs: [linux, macos, windows]
     runs-on: ubuntu-latest
     steps:
     - name: Download Artifacts
