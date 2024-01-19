@@ -131,12 +131,7 @@ impl Tea for TerminalModel {
                 }
             }
             Message::Rx(data) => {
-                for d in data {
-                    self.buffer.push(DataByte {
-                        value: d,
-                        direction: DataDirection::Output,
-                    });
-                }
+                update_buffer_output(self, data)
             }
             _ => {}
         }
@@ -281,8 +276,9 @@ fn update_buffer_input(model: &mut TerminalModel) {
     model.out.append(&mut input_handle);
     let mode = model.parameters.mode.as_ref().unwrap();
     let text_width = match mode {
-        Mode::Hex => 3,
+        Mode::Hex => 5,
         Mode::Octal => 6,
+        Mode::Ascii => 2,
         _ => 4,
     };
     let width = usize::from(model.bounds.width);
@@ -290,7 +286,7 @@ fn update_buffer_input(model: &mut TerminalModel) {
 
     let rel_height = height - 5;
     let rel_width = width / text_width;
-    let mut rel_length = model.buffer.len() + input_bytes.len() / rel_width;
+    let mut rel_length = (model.buffer.len() + input_bytes.len()) / rel_width;
     if width % text_width != 0 {
         rel_length += 1;
     }
@@ -303,6 +299,36 @@ fn update_buffer_input(model: &mut TerminalModel) {
         model.buffer.push(DataByte {
             value: *value,
             direction: DataDirection::Input,
+        });
+    }
+}
+
+fn update_buffer_output(model: &mut TerminalModel, data: Vec<u8>) {
+    let mode = model.parameters.mode.as_ref().unwrap();
+    let text_width = match mode {
+        Mode::Hex => 5,
+        Mode::Octal => 6,
+        Mode::Ascii => 2,
+        _ => 4,
+    };
+    let width = usize::from(model.bounds.width);
+    let height = usize::from(model.bounds.height);
+
+    let rel_height = height - 5;
+    let rel_width = width / text_width;
+    let mut rel_length = (model.buffer.len() + data.len()) / rel_width;
+    if width % text_width != 0 {
+        rel_length += 1;
+    }
+
+    if rel_length > rel_height {
+        model.buffer = Vec::new();
+    }
+
+    for d in data {
+        model.buffer.push(DataByte {
+            value: d,
+            direction: DataDirection::Output,
         });
     }
 }
