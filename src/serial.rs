@@ -175,7 +175,7 @@ pub fn read_write_port(
                 drop(f_lock);
             }
 
-            thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(10));
         }
 
         drop(connection);

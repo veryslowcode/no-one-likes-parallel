@@ -98,7 +98,7 @@ impl Default for Scene {
 
 impl EventListener {
     fn new() -> Self {
-        let tick_rate = Duration::from_millis(150);
+        let tick_rate = Duration::from_millis(25);
         let frame_rate = Duration::from_secs_f64(1.0 / 60.0);
         let (tx, rx) = unbounded_channel();
         let tx_handle = tx.clone();
@@ -535,7 +535,7 @@ fn serial_main(f: SerialFlag, rx: SerialBuffer, tx: SerialBuffer, p: SerialParam
                     }
                 }
             }
-            thread::sleep(Duration::from_millis(500));
+            thread::sleep(Duration::from_millis(104));
         }
     });
 }
