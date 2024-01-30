@@ -577,3 +577,69 @@ async fn nolp_main(
 
     reset_terminal().expect("Failed to reset terminal");
 }
+
+
+/******************************************************************************/
+/*******************************************************************************
+* Tests 
+*******************************************************************************/
+/******************************************************************************/
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::KeyModifiers;
+
+    #[test]
+    fn test_get_message() {
+        let mut scene = Scene::default();
+
+        let mut event = KeyEvent::new(KeyCode::Char(PREVIOUS_ELEMENT_CHAR), KeyModifiers::NONE);
+        let mut msg = get_message(&mut scene, event);
+        assert_eq!(msg, Some(Message::PreviousElement));
+
+        event.code = KeyCode::Char(NEXT_ELEMENT_CHAR);
+        msg = get_message(&mut scene, event);
+        assert_eq!(msg, Some(Message::NextElement));
+        
+        event.code = KeyCode::Char(RESUME_CHAR);
+        msg = get_message(&mut scene, event);
+        assert_eq!(msg, Some(Message::Resume));
+        
+        event.code = KeyCode::Char(PAUSE_CHAR);
+        msg = get_message(&mut scene, event);
+        assert_eq!(msg, Some(Message::Pause));
+        
+        event.code = KeyCode::Backspace;
+        msg = get_message(&mut scene, event);
+        assert_eq!(msg, Some(Message::Backspace));
+        
+        event.code = KeyCode::Enter;
+        msg = get_message(&mut scene, event);
+        assert_eq!(msg, Some(Message::Enter));
+        
+        event.code = KeyCode::Char('c');
+        msg = get_message(&mut scene, event);
+        assert_eq!(msg, Some(Message::Input('c')));
+    }
+
+    #[test]
+    fn test_get_message_modifiers() {
+        let mut scene = Scene::default();
+        
+        let mut event = KeyEvent::new(KeyCode::Char(QUIT_CHAR), KeyModifiers::CONTROL);
+        let mut msg = get_message(&mut scene, event);
+        assert_eq!(msg, Some(Message::Quit));
+
+        event.code = KeyCode::Char(DEVICE_LIST_CHAR);
+        msg = get_message(&mut scene, event); 
+        assert_eq!(msg, Some(Message::Switching(Screen::DeviceList, None)));
+        
+        event.code = KeyCode::Char(HELP_CHAR);
+        msg = get_message(&mut scene, event); 
+        assert_eq!(msg, Some(Message::Switching(Screen::Help, None)));
+        
+        event.code = KeyCode::Char(MENU_CHAR);
+        msg = get_message(&mut scene, event); 
+        assert_eq!(msg, Some(Message::Switching(Screen::Menu, None)));
+    }
+}
