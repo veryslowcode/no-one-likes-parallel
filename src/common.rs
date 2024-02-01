@@ -242,6 +242,14 @@ mod tests {
         mode = Mode::Octal;
         assert_eq!(mode.to_string(), "Octal");
     }
+
+    #[test]
+    fn test_port_parameters_name() {
+        let mut parameters = PortParameters::default();
+        assert_eq!(parameters.name, None);
+        parameters = parameters.name(String::from("test"));
+        assert_eq!(parameters.name, Some(String::from("test")));
+    }
     
     #[test]
     fn test_parity_to_string() {
