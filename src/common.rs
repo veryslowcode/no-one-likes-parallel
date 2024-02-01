@@ -160,7 +160,7 @@ impl Mode {
             Mode::Ascii => String::from("Ascii"),
             Mode::Decimal => String::from("Decimal"),
             Mode::Hex => String::from("Hex"),
-            Mode::Octal => String::from("Decimal"),
+            Mode::Octal => String::from("Octal"),
         }
     }
 }
@@ -229,5 +229,17 @@ mod tests {
         let expected_bounds = Rect::new(20, 6, 40, 12);
         let actual_bounds = get_center_bounds(50, 50, test_area);
         assert_eq!(expected_bounds, actual_bounds);
+    }
+
+    #[test]
+    fn test_mode_to_string() {
+        let mut mode = Mode::Ascii;
+        assert_eq!(mode.to_string(), "Ascii");
+        mode = Mode::Decimal;
+        assert_eq!(mode.to_string(), "Decimal");
+        mode = Mode::Hex;
+        assert_eq!(mode.to_string(), "Hex");
+        mode = Mode::Octal;
+        assert_eq!(mode.to_string(), "Octal");
     }
 }
