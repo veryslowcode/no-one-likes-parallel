@@ -212,3 +212,22 @@ pub fn serial_params_default() -> SerialParams {
     let mutex = Mutex::new(parameters);
     return Arc::new(mutex);
 }
+
+/******************************************************************************/
+/*******************************************************************************
+* Tests
+*******************************************************************************/
+/******************************************************************************/
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::layout::Rect;
+
+    #[test]
+    fn test_get_center_bounds() {
+        let test_area = Rect::new(0, 0, 80, 24);
+        let expected_bounds = Rect::new(20, 6, 40, 12);
+        let actual_bounds = get_center_bounds(50, 50, test_area);
+        assert_eq!(expected_bounds, actual_bounds);
+    }
+}
