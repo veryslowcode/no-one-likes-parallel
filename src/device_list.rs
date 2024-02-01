@@ -65,7 +65,8 @@ impl Default for DeviceListModel {
             devices: Vec::new(),
             state: State::Running,
             bounds: Rect::default(),
-            scroll: ScrollbarState::default().content_length(19),
+            scroll: ScrollbarState::default()
+                .content_length(CONTENT_LENGTH),
         }
     }
 }
@@ -91,7 +92,6 @@ impl Tea for DeviceListModel {
             }
             Message::Enter => {
                 switch_screen(self);
-                // TODO switch to menu with selected name
             }
             _ => {}
         }
@@ -211,5 +211,28 @@ fn switch_screen(model: &mut DeviceListModel) {
         );
     } else {
         model.state = State::Switching(Screen::Menu, None);
+    }
+}
+
+/******************************************************************************/
+/*******************************************************************************
+* Tests
+*******************************************************************************/
+/******************************************************************************/
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_model() {
+        let test_model = DeviceListModel::default();
+        assert_eq!(test_model.get_state(), State::Running);
+        assert_eq!(
+            test_model.scroll, 
+            ScrollbarState::default()
+                .content_length(CONTENT_LENGTH)
+        );
+        assert_eq!(test_model.offset, 0);
+        assert_eq!(test_model.selected, 0);
     }
 }
