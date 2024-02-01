@@ -242,4 +242,14 @@ mod tests {
         mode = Mode::Octal;
         assert_eq!(mode.to_string(), "Octal");
     }
+    
+    #[test]
+    fn test_parity_to_string() {
+        let mut parity = Parity::None;
+        assert_eq!(parity.to_string(), "None");
+        parity = Parity::Even;
+        assert_eq!(parity.to_string(), "Even");
+        parity = Parity::Odd;
+        assert_eq!(parity.to_string(), "Odd");
+    }    
 }
