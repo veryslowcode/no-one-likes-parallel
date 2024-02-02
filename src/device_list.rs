@@ -275,4 +275,39 @@ mod tests {
             State::Switching(Screen::Menu, None)
         );
     }
+
+    #[test]
+    fn test_select_element() {
+        let mut test_model = DeviceListModel::default();
+        test_model.bounds = Rect::new(0, 0, 80, (CONTENT_LENGTH - 1) as u16);
+        
+        select_element(&mut test_model, SelectElement::Next);
+        assert_eq!(test_model.selected, 0);
+        
+        select_element(&mut test_model, SelectElement::Previous);
+        assert_eq!(test_model.selected, 0);
+
+        let mut test_devices = Vec::new();
+        for i in 0..(CONTENT_LENGTH + 1) {
+           test_devices.push(format!("test-device/{}", i));
+        }
+        test_model.devices = test_devices;
+
+        select_element(&mut test_model, SelectElement::Next);
+        assert_eq!(test_model.selected, 1);
+        
+        select_element(&mut test_model, SelectElement::Previous);
+        assert_eq!(test_model.selected, 0);
+
+        select_element(&mut test_model, SelectElement::Next);
+        assert_eq!(test_model.offset, 1);
+
+        test_model.selected = 0;
+        select_element(&mut test_model, SelectElement::Previous);
+        assert_eq!(test_model.selected, test_model.devices.len() - 1);
+       
+        test_model.selected = test_model.devices.len() - 1;
+        select_element(&mut test_model, SelectElement::Next);
+        assert_eq!(test_model.selected, 0);
+    }
 }
