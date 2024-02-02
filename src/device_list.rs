@@ -235,4 +235,18 @@ mod tests {
         assert_eq!(test_model.offset, 0);
         assert_eq!(test_model.selected, 0);
     }
+
+    #[test]
+    fn test_get_state() {
+        let mut test_model = DeviceListModel::default();
+        test_model.state = State::Running;
+        assert_eq!(test_model.get_state(), State::Running);
+    }
+
+    #[test]
+    fn test_set_state() {
+        let mut test_model = DeviceListModel::default();
+        test_model.set_state(State::Stopping);
+        assert_eq!(test_model.state, State::Stopping);
+    }
 }
