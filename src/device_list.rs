@@ -249,4 +249,30 @@ mod tests {
         test_model.set_state(State::Stopping);
         assert_eq!(test_model.state, State::Stopping);
     }
+
+    #[test]
+    fn test_update() {
+        let mut test_model = DeviceListModel::default();
+
+        test_model.update(Message::NextElement);
+        assert_eq!(test_model.get_state(), State::Running);
+
+        test_model.update(Message::PreviousElement);
+        assert_eq!(test_model.get_state(), State::Running);
+        
+        test_model.update(Message::Pause);
+        assert_eq!(test_model.get_state(), State::Running);
+        
+        test_model.update(Message::Quit);
+        assert_eq!(test_model.get_state(), State::Running);
+        
+        test_model.update(Message::Rx(vec![0]));
+        assert_eq!(test_model.get_state(), State::Running);
+      
+        test_model.update(Message::Enter);
+        assert_eq!(
+            test_model.get_state(), 
+            State::Switching(Screen::Menu, None)
+        );
+    }
 }
