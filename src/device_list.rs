@@ -310,4 +310,20 @@ mod tests {
         select_element(&mut test_model, SelectElement::Next);
         assert_eq!(test_model.selected, 0);
     }
+
+    #[test]
+    fn test_switch_screens() {
+        let mut test_model = DeviceListModel::default();
+        
+        switch_screen(&mut test_model);
+        assert_eq!(test_model.state, State::Switching(Screen::Menu, None));
+
+        test_model.devices = vec![String::from("test-device")];
+        switch_screen(&mut test_model);
+        let expected = State::Switching(
+            Screen::Menu,
+            Some(PortParameters::default().name(String::from("test-device")))
+        );
+        assert_eq!(test_model.state, expected);
+    }
 }
