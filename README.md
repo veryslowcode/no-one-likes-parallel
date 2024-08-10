@@ -2,9 +2,6 @@
 
 A serial terminal that uses a Text User Interface (TUI) to allow the application to be run in a terminal emulator.
 
-> [!NOTE]
-> This project under active development and may have some bugs or may be lacking features that you need. If you find this is true for your use case, please submit a ticket and I will work to get the issue resolved or feature implemented as time permits.
-
 ## Features
 
 ![Menu View](resources/menu-view.png)
@@ -43,5 +40,3 @@ There may be some dependencies that are related to `serialport-rs` as this is us
 ## Building from Source
 
 The build should be as simple as using `cargo build`
-
-If you run into trouble, there may be some dependencies that your system is missing related to the crates used in this project. Please refer to the `System Requirements` section.
