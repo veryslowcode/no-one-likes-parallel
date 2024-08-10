@@ -45,15 +45,3 @@ There may be some dependencies that are related to `serialport-rs` as this is us
 The build should be as simple as using `cargo build`
 
 If you run into trouble, there may be some dependencies that your system is missing related to the crates used in this project. Please refer to the `System Requirements` section.
-
-
-## Contributing
-
-If you would like to contribute, by all means please do so. If you need any help getting started contributing, please take out a ticket and I would be happy to assist.
-
-## Looking Ahead
-
-- `custom keymaps` Adding a config file in the root of the directory to control this may be a simple yet effective approach.
-- `additional settings` This may include a secondary menu view. Potential for features like new line toggle.
-- `mouse input` Not sure the effort involved in this, it may be simple or a little more involved.
-- `custom theme` This may be able to piggyback off a config file with custom keymaps.
