@@ -160,7 +160,7 @@ impl Mode {
             Mode::Ascii => String::from("Ascii"),
             Mode::Decimal => String::from("Decimal"),
             Mode::Hex => String::from("Hex"),
-            Mode::Octal => String::from("Decimal"),
+            Mode::Octal => String::from("Octal"),
         }
     }
 }
@@ -211,4 +211,53 @@ pub fn serial_params_default() -> SerialParams {
     let parameters = PortParameters::default();
     let mutex = Mutex::new(parameters);
     return Arc::new(mutex);
+}
+
+/******************************************************************************/
+/*******************************************************************************
+* Tests
+*******************************************************************************/
+/******************************************************************************/
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::layout::Rect;
+
+    #[test]
+    fn test_get_center_bounds() {
+        let test_area = Rect::new(0, 0, 80, 24);
+        let expected_bounds = Rect::new(20, 6, 40, 12);
+        let actual_bounds = get_center_bounds(50, 50, test_area);
+        assert_eq!(expected_bounds, actual_bounds);
+    }
+
+    #[test]
+    fn test_mode_to_string() {
+        let mut mode = Mode::Ascii;
+        assert_eq!(mode.to_string(), "Ascii");
+        mode = Mode::Decimal;
+        assert_eq!(mode.to_string(), "Decimal");
+        mode = Mode::Hex;
+        assert_eq!(mode.to_string(), "Hex");
+        mode = Mode::Octal;
+        assert_eq!(mode.to_string(), "Octal");
+    }
+
+    #[test]
+    fn test_port_parameters_name() {
+        let mut parameters = PortParameters::default();
+        assert_eq!(parameters.name, None);
+        parameters = parameters.name(String::from("test"));
+        assert_eq!(parameters.name, Some(String::from("test")));
+    }
+    
+    #[test]
+    fn test_parity_to_string() {
+        let mut parity = Parity::None;
+        assert_eq!(parity.to_string(), "None");
+        parity = Parity::Even;
+        assert_eq!(parity.to_string(), "Even");
+        parity = Parity::Odd;
+        assert_eq!(parity.to_string(), "Odd");
+    }    
 }

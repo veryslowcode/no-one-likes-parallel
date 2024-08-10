@@ -65,7 +65,8 @@ impl Default for DeviceListModel {
             devices: Vec::new(),
             state: State::Running,
             bounds: Rect::default(),
-            scroll: ScrollbarState::default().content_length(19),
+            scroll: ScrollbarState::default()
+                .content_length(CONTENT_LENGTH),
         }
     }
 }
@@ -91,7 +92,6 @@ impl Tea for DeviceListModel {
             }
             Message::Enter => {
                 switch_screen(self);
-                // TODO switch to menu with selected name
             }
             _ => {}
         }
@@ -211,5 +211,119 @@ fn switch_screen(model: &mut DeviceListModel) {
         );
     } else {
         model.state = State::Switching(Screen::Menu, None);
+    }
+}
+
+/******************************************************************************/
+/*******************************************************************************
+* Tests
+*******************************************************************************/
+/******************************************************************************/
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_model() {
+        let test_model = DeviceListModel::default();
+        assert_eq!(test_model.get_state(), State::Running);
+        assert_eq!(
+            test_model.scroll, 
+            ScrollbarState::default()
+                .content_length(CONTENT_LENGTH)
+        );
+        assert_eq!(test_model.offset, 0);
+        assert_eq!(test_model.selected, 0);
+    }
+
+    #[test]
+    fn test_get_state() {
+        let mut test_model = DeviceListModel::default();
+        test_model.state = State::Running;
+        assert_eq!(test_model.get_state(), State::Running);
+    }
+
+    #[test]
+    fn test_set_state() {
+        let mut test_model = DeviceListModel::default();
+        test_model.set_state(State::Stopping);
+        assert_eq!(test_model.state, State::Stopping);
+    }
+
+    #[test]
+    fn test_update() {
+        let mut test_model = DeviceListModel::default();
+
+        test_model.update(Message::NextElement);
+        assert_eq!(test_model.get_state(), State::Running);
+
+        test_model.update(Message::PreviousElement);
+        assert_eq!(test_model.get_state(), State::Running);
+        
+        test_model.update(Message::Pause);
+        assert_eq!(test_model.get_state(), State::Running);
+        
+        test_model.update(Message::Quit);
+        assert_eq!(test_model.get_state(), State::Running);
+        
+        test_model.update(Message::Rx(vec![0]));
+        assert_eq!(test_model.get_state(), State::Running);
+      
+        test_model.update(Message::Enter);
+        assert_eq!(
+            test_model.get_state(), 
+            State::Switching(Screen::Menu, None)
+        );
+    }
+
+    #[test]
+    fn test_select_element() {
+        let mut test_model = DeviceListModel::default();
+        test_model.bounds = Rect::new(0, 0, 80, (CONTENT_LENGTH - 1) as u16);
+        
+        select_element(&mut test_model, SelectElement::Next);
+        assert_eq!(test_model.selected, 0);
+        
+        select_element(&mut test_model, SelectElement::Previous);
+        assert_eq!(test_model.selected, 0);
+
+        let mut test_devices = Vec::new();
+        for i in 0..(CONTENT_LENGTH + 1) {
+           test_devices.push(format!("test-device/{}", i));
+        }
+        test_model.devices = test_devices;
+
+        select_element(&mut test_model, SelectElement::Next);
+        assert_eq!(test_model.selected, 1);
+        
+        select_element(&mut test_model, SelectElement::Previous);
+        assert_eq!(test_model.selected, 0);
+
+        select_element(&mut test_model, SelectElement::Next);
+        assert_eq!(test_model.offset, 1);
+
+        test_model.selected = 0;
+        select_element(&mut test_model, SelectElement::Previous);
+        assert_eq!(test_model.selected, test_model.devices.len() - 1);
+       
+        test_model.selected = test_model.devices.len() - 1;
+        select_element(&mut test_model, SelectElement::Next);
+        assert_eq!(test_model.selected, 0);
+    }
+
+    #[test]
+    fn test_switch_screens() {
+        let mut test_model = DeviceListModel::default();
+        
+        switch_screen(&mut test_model);
+        assert_eq!(test_model.state, State::Switching(Screen::Menu, None));
+
+        test_model.devices = vec![String::from("test-device")];
+        switch_screen(&mut test_model);
+        let expected = State::Switching(
+            Screen::Menu,
+            Some(PortParameters::default().name(String::from("test-device")))
+        );
+        assert_eq!(test_model.state, expected);
     }
 }

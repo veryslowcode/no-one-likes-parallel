@@ -251,3 +251,40 @@ fn render_title(frame: &mut Frame, area: Rect) {
 fn switch_screen(model: &mut HelpModel) {
     model.state = State::Switching(model.caller.to_owned(), model.parameters.to_owned());
 }
+
+/******************************************************************************/
+/*******************************************************************************
+* Tests 
+*******************************************************************************/
+/******************************************************************************/
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_switch_screen() {
+        let mut test_model = HelpModel::default();
+
+        // Ensure that switching screen works when
+        // parameters are None.
+        test_model.caller = Screen::Menu;
+        switch_screen(&mut test_model);
+        assert_eq!(
+            test_model.get_state(), 
+            State::Switching(Screen::Menu, None)
+        );
+        
+        let test_parameters = PortParameters::default()
+            .name(String::from("test/parameters"));
+
+        // Ensure that switching screen works when
+        // parameters are Some.
+        test_model.state = State::Running;
+        test_model.parameters = Some(test_parameters.clone());
+        switch_screen(&mut test_model);
+        assert_eq!(
+            test_model.get_state(), 
+            State::Switching(Screen::Menu, Some(test_parameters))
+        );
+    }
+}
