@@ -1,35 +1,45 @@
 # NOLP Terminal
 
-A serial terminal that uses a Text User Interface (TUI) to allow the application to be run in a terminal emulator.
+Terminal-based application to communicate with serial devices.
+It can connect to a serial port to read output and/or write
+input to a device (i.e., Arduino, ESP 32, etc.).
 
 ## Features
 
-![Menu View](resources/menu-view.png)
+![Demo](resources/demo.png)
 
 ### Encoding
 
 The communication to and from the serial port can be encoded with the following formats:
 
+```
 - ASCII
 - Decimal
 - Hex
 - Octal
+```
 
 ### Keymaps
 
-Movement is based on keyboard input:
+All movement is based on keyboard input.
+There are different screens (i.e., Menu, Device List, Help, and Terminal). The following keymaps are for screen and element navigation.
 
-**Display Keymaps:**\
-*Ctrl + n* &nbsp;&nbsp; Displays the menu view\
-*Ctrl + l* &nbsp; &nbsp; Displays the device list view\
-*Ctrl + q* &nbsp;&nbsp; Quits the application
+```sh
+`Ctrl + n`  # Displays the menu view
+`Ctrl + l`  # Displays the device list view
+`Ctrl + h`  # Displays the help view
+`Ctrl + q`  # Quits the application
 
-**Movement Keymaps:**\
-*Ctrl + [* &nbsp;&nbsp; Selects the previous element\
-*Ctrl + ]* &nbsp;&nbsp; Selects the next element
+`[`  # Selects the previous element
+`]`  # Selects the next element
+
+# Only used in the Terminal view
+`Ctrl + p`  # Pause the input/output
+`Ctrl + r`  # Result the input/output
+```
 
 >[!NOTE]
-> At certain breakpoints, the application will render a scrollbar. The `movement keymaps` will control the scroll in this case.
+> At certain size-breakpoints, the application will render a scrollbar. The `movement keymaps` will control the scroll in this case.
 
 ## System Requirements
 

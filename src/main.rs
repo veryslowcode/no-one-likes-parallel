@@ -217,6 +217,12 @@ fn get_message(scene: &mut Scene, key: KeyEvent) -> Option<Message> {
                 let parameters = get_parameters(scene);
                 return Some(Message::Switching(Screen::Help, parameters));
             }
+            KeyCode::Char(RESUME_CHAR) => {
+                return Some(Message::Resume);
+            }
+            KeyCode::Char(PAUSE_CHAR) => {
+                return Some(Message::Pause);
+            }
             _ => {}
         }
     }
@@ -224,8 +230,6 @@ fn get_message(scene: &mut Scene, key: KeyEvent) -> Option<Message> {
     return match key.code {
         KeyCode::Char(PREVIOUS_ELEMENT_CHAR) => Some(Message::PreviousElement),
         KeyCode::Char(NEXT_ELEMENT_CHAR) => Some(Message::NextElement),
-        KeyCode::Char(RESUME_CHAR) => Some(Message::Resume),
-        KeyCode::Char(PAUSE_CHAR) => Some(Message::Pause),
         KeyCode::Char(input) => Some(Message::Input(input)),
         KeyCode::Backspace => Some(Message::Backspace),
         KeyCode::Enter => Some(Message::Enter),
